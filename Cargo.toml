@@ -1,0 +1,9 @@
+[package]
+name = "meplang"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+primitive-types = "0.12.1"
+pest = "2.5.3"
+pest_derive = "2.5.3"

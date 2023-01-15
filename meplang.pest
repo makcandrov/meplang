@@ -1,0 +1,52 @@
+alpha = _{ 'a'..'z' | 'A'..'Z' }
+digit = _{ '0'..'9' }
+hex = _{ (digit | 'a'..'f' | 'A'..'F') }
+hex_litteral = {"0x" ~ (hex ~ hex) * }
+
+word = { alpha+ }
+var_name = { (alpha | "_") ~ (alpha | digit | "_")* }
+var_with_dots = { var_name ~ ("." ~ var_name)* }
+
+expr = {var_name ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ hex_litteral}
+
+attribute = {
+	"#[" ~ WHITE_SPACE* ~ var_name ~ 
+    ("(" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ ")")?
+    ~ WHITE_SPACE* ~"]"
+}
+
+const_decl = { "const" ~ WHITE_SPACE* ~ expr}
+
+block_content = {
+	(word ~ "(" ~ WHITE_SPACE* ~ (var_with_dots | hex_litteral) ~ WHITE_SPACE* ~ ")") |
+	var_name |
+    hex_litteral
+}
+
+block_decl = {
+	"block" ~ WHITE_SPACE+ ~ var_name ~ WHITE_SPACE* ~
+    "{" ~ WHITE_SPACE* ~
+    	(block_content ~ WHITE_SPACE+)* ~ (block_content?)
+    ~ WHITE_SPACE* ~ "}"
+}
+
+block_decl_with_attr = {
+	(attribute ~ WHITE_SPACE*)* ~ WHITE_SPACE* ~ block_decl
+}
+
+contract_decl = {
+	"contract" ~ WHITE_SPACE+ ~ var_name ~ WHITE_SPACE* ~
+    "{" ~ WHITE_SPACE* ~
+    	((block_decl_with_attr | const_decl) ~ WHITE_SPACE*)*
+    ~ WHITE_SPACE* ~ "}"
+}
+
+contract_decl_with_attr = {
+	(attribute ~ WHITE_SPACE*)* ~ WHITE_SPACE* ~ contract_decl
+}
+
+file = {
+	SOI ~ 
+	(contract_decl_with_attr ~ WHITE_SPACE*)* ~
+	EOI
+}
