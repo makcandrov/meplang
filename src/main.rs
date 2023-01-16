@@ -1,39 +1,19 @@
-use std::collections::HashSet;
+use ast::file::MeplangFile;
+use primitive_types::H256;
 
-use attribute::Attribute;
-use block::Block;
-
-mod attribute;
-mod block;
 mod variable;
-
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-use pest::Parser;
-
-#[derive(Parser)]
-#[grammar = "meplang.pest"]
-pub struct MeplangParser;
+mod opcode;
+mod parser;
+mod ast;
 
 fn main() {
-    let code = std::fs::read_to_string("input.mep").unwrap();
-    let parsed = match MeplangParser::parse(Rule::file, &code) {
-        Ok(parsed) => parsed,
-        Err(err) => {
-            println!("parsing failed: {}", err);
-            return;
-        },
+    let meplang_file = MeplangFile::new(
+        "input=".to_owned(),
+        std::fs::read_to_string("input.mep").unwrap()
+    );
+
+    match meplang_file {
+        Ok(res) => {dbg!(res);},
+        Err(err) => {println!("{}", err);},
     };
-    // parsed.
-    // for item in parsed {
-    //     dbg!(item);
-    // }
-    dbg!(parsed);
 }
-
-pub struct Contract {
-    pub attributes: Vec<Attribute>,
-    pub blocks: Vec<Block>,
-}
-

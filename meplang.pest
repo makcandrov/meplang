@@ -1,11 +1,13 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)*}
 
-hex_litteral = @{"0x" ~ (HEX_DIGIT ~ HEX_DIGIT) * }
-word = @{ ASCII_ALPHA+ }
-keyword = @{ word ~ &WHITESPACE }
+hex_litteral = @{"0x" ~ HEX_DIGIT * }
 var_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 var_with_dots = @{ var_name ~ ("." ~ var_with_dots)? }
+
+const_keyword = @{ "const" ~ &WHITESPACE }
+block_keyword = @{ "block" ~ &WHITESPACE }
+contract_keyword = @{ "contract" ~ &WHITESPACE }
 
 expression = { var_name ~ "=" ~ hex_litteral }
 
@@ -15,7 +17,7 @@ attribute = {
     ~ "]"
 }
 
-const_decl = { keyword ~ expression ~ ";"}
+const_decl = { const_keyword ~ expression ~ ";"}
 
 function = ${
 	var_name ~ WHITESPACE* ~ "("
@@ -32,7 +34,7 @@ block_content_inner = ${
 block_content = @{block_content_inner ~ &(WHITESPACE | "}" | EOI)}
 
 block_decl = {
-	keyword ~ var_name ~ "{" ~
+	block_keyword ~ var_name ~ "{" ~
     	block_content*
      ~ "}"
 }
@@ -42,7 +44,7 @@ block_decl_with_attr = {
 }
 
 contract_decl = {
-	keyword ~ var_name ~ "{" ~
+	contract_keyword ~ var_name ~ "{" ~
     	(block_decl_with_attr | const_decl)*
     ~ "}"
 }
