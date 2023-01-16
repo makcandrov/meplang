@@ -1,52 +1,58 @@
-alpha = _{ 'a'..'z' | 'A'..'Z' }
-digit = _{ '0'..'9' }
-hex = _{ (digit | 'a'..'f' | 'A'..'F') }
-hex_litteral = {"0x" ~ (hex ~ hex) * }
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)*}
 
-word = { alpha+ }
-var_name = { (alpha | "_") ~ (alpha | digit | "_")* }
-var_with_dots = { var_name ~ ("." ~ var_name)* }
+hex_litteral = @{"0x" ~ (HEX_DIGIT ~ HEX_DIGIT) * }
+word = @{ ASCII_ALPHA+ }
+keyword = @{ word ~ &WHITESPACE }
+var_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+var_with_dots = @{ var_name ~ ("." ~ var_with_dots)? }
 
-expr = {var_name ~ WHITE_SPACE* ~ "=" ~ WHITE_SPACE* ~ hex_litteral}
+expression = { var_name ~ "=" ~ hex_litteral }
 
 attribute = {
-	"#[" ~ WHITE_SPACE* ~ var_name ~ 
-    ("(" ~ WHITE_SPACE* ~ expr ~ WHITE_SPACE* ~ ")")?
-    ~ WHITE_SPACE* ~"]"
+	"#[" ~ var_name ~ 
+    ("(" ~ expression  ~ ")")?
+    ~ "]"
 }
 
-const_decl = { "const" ~ WHITE_SPACE* ~ expr}
+const_decl = { keyword ~ expression ~ ";"}
 
-block_content = {
-	(word ~ "(" ~ WHITE_SPACE* ~ (var_with_dots | hex_litteral) ~ WHITE_SPACE* ~ ")") |
-	var_name |
-    hex_litteral
+function = ${
+	var_name ~ WHITESPACE* ~ "("
+    	~ WHITESPACE* ~ (var_with_dots | hex_litteral) ~ WHITESPACE* ~
+    ")"
 }
+
+block_content_inner = ${
+	hex_litteral |
+	function |
+	var_name ~ !(WHITESPACE* ~ "(")
+}
+
+block_content = @{block_content_inner ~ &(WHITESPACE | "}" | EOI)}
 
 block_decl = {
-	"block" ~ WHITE_SPACE+ ~ var_name ~ WHITE_SPACE* ~
-    "{" ~ WHITE_SPACE* ~
-    	(block_content ~ WHITE_SPACE+)* ~ (block_content?)
-    ~ WHITE_SPACE* ~ "}"
+	keyword ~ var_name ~ "{" ~
+    	block_content*
+     ~ "}"
 }
 
 block_decl_with_attr = {
-	(attribute ~ WHITE_SPACE*)* ~ WHITE_SPACE* ~ block_decl
+	attribute* ~ block_decl
 }
 
 contract_decl = {
-	"contract" ~ WHITE_SPACE+ ~ var_name ~ WHITE_SPACE* ~
-    "{" ~ WHITE_SPACE* ~
-    	((block_decl_with_attr | const_decl) ~ WHITE_SPACE*)*
-    ~ WHITE_SPACE* ~ "}"
+	keyword ~ var_name ~ "{" ~
+    	(block_decl_with_attr | const_decl)*
+    ~ "}"
 }
 
 contract_decl_with_attr = {
-	(attribute ~ WHITE_SPACE*)* ~ WHITE_SPACE* ~ contract_decl
+	attribute* ~ contract_decl
 }
 
 file = {
 	SOI ~ 
-	(contract_decl_with_attr ~ WHITE_SPACE*)* ~
+	contract_decl_with_attr* ~
 	EOI
 }
