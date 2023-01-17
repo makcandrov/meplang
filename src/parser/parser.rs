@@ -3,7 +3,7 @@ use pest_derive::Parser;
 use crate::parser::error::new_error_from_pair;
 
 #[derive(Parser)]
-#[grammar = "meplang.pest"]
+#[grammar = "./src/parser/meplang.pest"]
 pub struct MeplangParser;
 
 pub trait FromPair {
