@@ -1,5 +1,4 @@
 use ast::file::MeplangFile;
-use primitive_types::H256;
 
 mod opcode;
 mod parser;

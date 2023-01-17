@@ -1,7 +1,3 @@
-use std::collections::HashMap;
-
-use primitive_types::H256;
-
 use crate::ast::constant::Constant;
 use crate::parser::parser::{Rule, FromPair};
 use crate::ast::attribute::Attribute;

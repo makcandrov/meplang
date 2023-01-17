@@ -1,9 +1,7 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
-use primitive_types::H256;
-use crate::parser::error::new_error_from_pair;
 use crate::{ast::attribute::Attribute, parser::parser::FromPair};
-use crate::parser::parser::Rule;
+use crate::parser::parser::{Rule, map_unique_child, get_next};
 
 #[derive(Debug, Clone, Default)]
 pub struct Block {
@@ -13,11 +11,28 @@ pub struct Block {
 }
 
 #[derive(Debug, Clone)]
-
 pub enum BlockLine {
-    String(String),
-    Function { name: String, value: String},
+    Var(String),
+    Function(Function),
     Bytes(Bytes),
+}
+
+#[derive(Debug, Clone)]
+pub struct Function {
+    name: String,
+    arg: Argument,
+}
+
+#[derive(Debug, Clone)]
+pub enum Argument {
+    Var(VariableField),
+    Bytes(Bytes),
+}
+
+#[derive(Debug, Clone)]
+pub struct VariableField {
+    pub variable: String,
+    pub field: String,
 }
 
 impl FromPair for Block {
@@ -44,13 +59,13 @@ impl FromPair for Block {
 
                     while let Some(block_content) = block_decl_inner.next() {
                         assert!(block_content.as_rule() == Rule::block_content);
-                        let mut block_content_inner = block_content.into_inner();
-                        let block_line = block_content_inner.next().unwrap();
+                        res.lines.push(
+                            map_unique_child(block_content, |block_line| {
+                                assert!(block_line.as_rule() == Rule::block_line);
+                                BlockLine::from_pair(block_line)
+                            })?
+                        );
 
-                        assert!(block_line.as_rule() == Rule::block_line);
-                        assert!(block_content_inner.next() == None);
-
-                        res.lines.push(BlockLine::from_pair(block_line)?);
                     }
                 },
                 _ => unreachable!(),
@@ -64,6 +79,49 @@ impl FromPair for BlockLine {
     fn from_pair(block_line: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(block_line.as_rule() == Rule::block_line);
 
-        Ok(BlockLine::String(String::new()))
+        map_unique_child(block_line, |child| {
+            match child.as_rule() {
+                Rule::hex_litteral => Ok(BlockLine::Bytes(Bytes::from_pair(child)?)),
+                Rule::function => Ok(BlockLine::Function(Function::from_pair(child)?)),
+                Rule::var_name => Ok(BlockLine::Var(child.as_str().to_owned())),
+                _ => unreachable!(),
+            }
+        })
+    }
+}
+
+impl FromPair for Function {
+    fn from_pair(function: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(function.as_rule() == Rule::function);
+
+        let mut function_inner = function.into_inner();
+
+        let name = get_next(&mut function_inner, Rule::var_name).as_str().to_owned();
+
+        let arg = function_inner.next().unwrap();
+        let arg = match arg.as_rule() {
+            Rule::hex_litteral => Argument::Bytes(Bytes::from_pair(arg)?),
+            Rule::var_field => Argument::Var(VariableField::from_pair(arg)?),
+            _ => unreachable!(),
+        };
+
+        assert!(function_inner.next() == None);
+
+        Ok(Function { name, arg })
+
+    }
+}
+
+impl FromPair for VariableField {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(pair.as_rule() == Rule::var_field);
+        let mut pair_inner = pair.into_inner();
+
+        let variable = get_next(&mut pair_inner, Rule::var_name).as_str().to_owned();
+        _ = get_next(&mut pair_inner, Rule::dot);
+        let field = get_next(&mut pair_inner, Rule::var_name).as_str().to_owned();
+        assert!(pair_inner.next() == None);
+
+        Ok(VariableField { variable, field })
     }
 }

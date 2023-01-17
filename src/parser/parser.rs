@@ -1,4 +1,4 @@
-use pest::iterators::Pair;
+use pest::iterators::{Pair, Pairs};
 use pest_derive::Parser;
 use crate::parser::error::new_error_from_pair;
 
@@ -7,7 +7,24 @@ use crate::parser::error::new_error_from_pair;
 pub struct MeplangParser;
 
 pub trait FromPair {
-    fn from_pair(expr: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> where Self: Sized;
+    fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> where Self: Sized;
+}
+
+pub fn map_unique_child<T>(
+    pair: Pair<Rule>,
+    f: fn(Pair<Rule>) -> T,
+) -> T {
+    let mut inner = pair.into_inner();
+    let child = inner.next().unwrap();
+    let res = f(child);
+    assert!(inner.next() == None);
+    res
+}
+
+pub fn get_next<'a, 'rule>(pairs: &'a mut Pairs<'rule, Rule>, expected: Rule) -> Pair<'rule, Rule> {
+    let pair = pairs.next().unwrap();
+    assert!(pair.as_rule() == expected);
+    pair
 }
 
 impl FromPair for bytes::Bytes {
@@ -43,3 +60,4 @@ impl FromPair for String {
         Ok(res.as_str().to_owned())
     }
 }
+

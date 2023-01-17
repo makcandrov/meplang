@@ -1,6 +1,7 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)*}
 
+dot = { "." }
 semicolon = { ";" }
 equal = { "=" }
 
@@ -12,7 +13,7 @@ hex_litteral = @{"0x" ~ HEX_DIGIT * ~ !ASCII_ALPHANUMERIC }
 litteral = { string_litteral | hex_litteral }
 
 var_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-var_with_dots = @{ var_name ~ ("." ~ var_with_dots)? }
+var_field = ${ var_name ~ dot ~ var_name }
 
 const_keyword = @{ "const" ~ &WHITESPACE }
 block_keyword = @{ "block" ~ &WHITESPACE }
@@ -30,7 +31,7 @@ const_decl = { const_keyword ~ affectation ~ semicolon }
 
 function = ${
 	var_name ~ WHITESPACE* ~ "("
-    	~ WHITESPACE* ~ (var_with_dots | hex_litteral) ~ WHITESPACE* ~
+    	~ WHITESPACE* ~ (var_field | hex_litteral) ~ WHITESPACE* ~
     ")"
 }
 

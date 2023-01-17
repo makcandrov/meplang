@@ -1,6 +1,5 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
-use primitive_types::H256;
 use crate::{parser::{parser::{Rule, FromPair}, error::new_error_from_pair}, ast::affectation::Litteral};
 
 use super::affectation::Affectation;
