@@ -1,10 +1,11 @@
 use ast::file::MeplangFile;
 use primitive_types::H256;
 
-mod variable;
 mod opcode;
 mod parser;
 mod ast;
+mod pre_processing;
+mod compile;
 
 fn main() {
     let meplang_file = MeplangFile::new(

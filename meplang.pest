@@ -1,7 +1,16 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)*}
 
-hex_litteral = @{"0x" ~ HEX_DIGIT * }
+semicolon = { ";" }
+equal = { "=" }
+
+string_inner = ${(!"\"" ~ ANY)*}
+
+string_litteral = @{ "\"" ~ string_inner ~ "\"" }
+hex_litteral = @{"0x" ~ HEX_DIGIT * ~ !ASCII_ALPHANUMERIC }
+
+litteral = { string_litteral | hex_litteral }
+
 var_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 var_with_dots = @{ var_name ~ ("." ~ var_with_dots)? }
 
@@ -9,15 +18,15 @@ const_keyword = @{ "const" ~ &WHITESPACE }
 block_keyword = @{ "block" ~ &WHITESPACE }
 contract_keyword = @{ "contract" ~ &WHITESPACE }
 
-expression = { var_name ~ "=" ~ hex_litteral }
+affectation = { var_name ~ equal ~ litteral }
 
 attribute = {
 	"#[" ~ var_name ~ 
-    ("(" ~ expression  ~ ")")?
+    ("(" ~ affectation  ~ ")")?
     ~ "]"
 }
 
-const_decl = { const_keyword ~ expression ~ ";"}
+const_decl = { const_keyword ~ affectation ~ semicolon }
 
 function = ${
 	var_name ~ WHITESPACE* ~ "("
@@ -25,13 +34,13 @@ function = ${
     ")"
 }
 
-block_content_inner = ${
+block_line = ${
 	hex_litteral |
 	function |
 	var_name ~ !(WHITESPACE* ~ "(")
 }
 
-block_content = @{block_content_inner ~ &(WHITESPACE | "}" | EOI)}
+block_content = @{block_line ~ &(WHITESPACE | "}" | EOI)}
 
 block_decl = {
 	block_keyword ~ var_name ~ "{" ~
@@ -55,6 +64,6 @@ contract_decl_with_attr = {
 
 file = {
 	SOI ~ 
-	contract_decl_with_attr* ~
+	contract_decl_with_attr+ ~
 	EOI
 }

@@ -20,13 +20,15 @@ impl FromPair for Contract {
         assert!(contract_decl_with_attr.as_rule() == Rule::contract_decl_with_attr);
     
         let mut res = Self::default();
-        for attr_or_block in contract_decl_with_attr.into_inner() {
-            match attr_or_block.as_rule() {
+        let mut seeking_attributes = true;
+        for attr_or_contract in contract_decl_with_attr.into_inner() {
+            match attr_or_contract.as_rule() {
                 Rule::attribute => {
-
+                    assert!(seeking_attributes);
                 },
                 Rule::contract_decl => {
-                    let mut contract_decl_inner = attr_or_block.into_inner();
+                    seeking_attributes = false;
+                    let mut contract_decl_inner = attr_or_contract.into_inner();
 
                     assert!(contract_decl_inner.next().unwrap().as_rule() == Rule::contract_keyword);
 
