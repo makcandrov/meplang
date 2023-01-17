@@ -31,16 +31,16 @@ pub fn get_next<'a, 'rule>(pairs: &'a mut Pairs<'rule, Rule>, expected: Rule) ->
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<T: FromPair> {
+pub struct Located<T: FromPair> {
     pub start: usize,
     pub end: usize,
     pub inner: T,
 }
 
-impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Token<T> {
+impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Located<T> {
     type Error = pest::error::Error<Rule>;
 
-    fn try_from(pair: Pair<'_, Rule>) -> Result<Token<T>, Self::Error> {
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Located<T>, Self::Error> {
         Ok(Self {
             start: pair.as_span().start(),
             end: pair.as_span().end(),
@@ -49,7 +49,7 @@ impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Token<T> {
     }
 }
 
-impl<T: FromPair> Deref for Token<T> {
+impl<T: FromPair> Deref for Located<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {

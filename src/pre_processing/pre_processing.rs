@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use bytes::Bytes;
 
+use crate::ast::contract::RContract;
 use crate::parser::error::new_error_from_ast;
-use crate::{parser::parser::Token, ast::file::RFile};
+use crate::{parser::parser::Located, ast::file::RFile};
 use crate::parser::parser::Rule;
 
 pub struct Contract {
@@ -27,9 +28,11 @@ pub fn pre_process(
     for i in 0..file.0.len() {
         let name = &file.0[i].name.0;
         if contract_names.insert(name.clone(), i).is_some() {
-            return Err(
-                new_error_from_ast(code, &file.0[i].name, &format!("Name {} already used", name))
-            )
+            return Err(new_error_from_ast(
+                code,
+                &file.0[i].name,
+                &format!("Name {} already used", name)
+            ));
         }
     }
 
@@ -37,8 +40,21 @@ pub fn pre_process(
 }
 
 pub fn pre_process_contract(
-    // &contract_token: Ast<Contract>
-) {
+    code: &str,
+    contract_token: &Located<RContract>,
+    contract_names: &HashMap<String, usize>,
+) -> Result<(), pest::error::Error<Rule>> {
     let mut constants = HashMap::<String, Bytes>::new();
+    let mut contract_dependencies = HashSet::<usize>::new();
 
+    for constant in &contract_token.constants {
+        if constants.insert(constant.name.0.clone(), constant.value.inner.clone()).is_some() {
+            return Err(new_error_from_ast(
+                code,
+                &constant.name,
+                &format!("Name {} already used", constant.name.0)
+            ));
+        }
+    }
+    Ok(())
 }

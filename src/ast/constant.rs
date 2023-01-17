@@ -1,14 +1,14 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
-use crate::{parser::{parser::{Rule, FromPair}, error::new_error_from_pair}, ast::affectation::RLitteral};
+use crate::{parser::{parser::{Rule, FromPair, Located}, error::new_error_from_pair}, ast::affectation::RLitteral};
 
-use super::affectation::RAffectation;
+use super::{affectation::RAffectation, contract::VarName};
 
 
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct RConstant {
-    pub name: String, 
-    pub value: Bytes,
+    pub name: Located<VarName>, 
+    pub value: Located<Bytes>,
 }
 
 impl FromPair for RConstant {
@@ -25,7 +25,7 @@ impl FromPair for RConstant {
 
         let RAffectation { name, value } = RAffectation::from_pair(affectation.clone())?;
 
-        let value = match value {
+        let value = match value.inner {
             RLitteral::String(_) => {
                 return Err(new_error_from_pair(&affectation, "expected hex litteral".to_owned()))
             },

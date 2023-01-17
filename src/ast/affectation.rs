@@ -1,17 +1,19 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
-use crate::parser::parser::{Rule, FromPair};
+use crate::parser::parser::{Rule, FromPair, Located};
+
+use super::contract::VarName;
 
 #[derive(Debug, Clone)]
 pub struct RAffectation {
-    pub name: String,
-    pub value: RLitteral,
+    pub name: Located<VarName>,
+    pub value: Located<RLitteral>,
 }
 
 #[derive(Debug, Clone)]
 pub enum RLitteral {
-    String(String),
-    Bytes(Bytes),
+    String(Located<String>),
+    Bytes(Located<Bytes>),
 }
 
 impl FromPair for RAffectation {
@@ -31,8 +33,8 @@ impl FromPair for RAffectation {
         assert!(affectation_inner.next() == None);
 
         Ok(Self {
-            name: name.as_str().to_owned(),
-            value: RLitteral::from_pair(value)?,
+            name: Located::<VarName>::try_from(name)?,
+            value: Located::<RLitteral>::try_from(value)?,
         })
     }
 }
@@ -45,8 +47,8 @@ impl FromPair for RLitteral {
         let string_or_hex_litteral = litteral_inner.next().unwrap();
 
         let res = match string_or_hex_litteral.as_rule() {
-            Rule::string_litteral => RLitteral::String(String::from_pair(string_or_hex_litteral)?),
-            Rule::hex_litteral => RLitteral::Bytes(Bytes::from_pair(string_or_hex_litteral)?),
+            Rule::string_litteral => RLitteral::String(Located::<String>::try_from(string_or_hex_litteral)?),
+            Rule::hex_litteral => RLitteral::Bytes(Located::<Bytes>::try_from(string_or_hex_litteral)?),
             _ => unreachable!(),
         };
 
