@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use core::fmt::Debug;
 
 use pest::iterators::{Pair, Pairs};
 use pest_derive::Parser;
@@ -8,8 +9,8 @@ use crate::parser::error::new_error_from_pair;
 #[grammar = "./src/parser/meplang.pest"]
 pub struct MeplangParser;
 
-pub trait FromPair {
-    fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> where Self: Sized;
+pub trait FromPair where Self: Sized + Debug + Clone{
+    fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>>;
 }
 
 pub fn map_unique_child<T>(
@@ -29,10 +30,11 @@ pub fn get_next<'a, 'rule>(pairs: &'a mut Pairs<'rule, Rule>, expected: Rule) ->
     pair
 }
 
+#[derive(Debug, Clone)]
 pub struct Ast<T: FromPair> {
-    start: usize,
-    end: usize,
-    inner: T,
+    pub start: usize,
+    pub end: usize,
+    pub inner: T,
 }
 
 impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Ast<T> {

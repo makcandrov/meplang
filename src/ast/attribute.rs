@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use crate::opcode::OpCode;
+use pest::iterators::Pair;
+use crate::parser::parser::Rule;
+use crate::{opcode::OpCode, parser::parser::FromPair};
 
 
 #[derive(Debug, Clone)]
@@ -32,5 +34,11 @@ impl FromStr for AssumableOpCode {
             Ok(OpCode::CHAINID) => Ok(Self::CHAINID),
             _ => Err(InvalidOpCodeError())
         }
+    }
+}
+
+impl FromPair for Attribute {
+    fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<crate::parser::parser::Rule>> {
+        todo!()
     }
 }
