@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use pest::iterators::{Pair, Pairs};
 use pest_derive::Parser;
 use crate::parser::error::new_error_from_pair;
@@ -25,6 +27,32 @@ pub fn get_next<'a, 'rule>(pairs: &'a mut Pairs<'rule, Rule>, expected: Rule) ->
     let pair = pairs.next().unwrap();
     assert!(pair.as_rule() == expected);
     pair
+}
+
+pub struct Ast<T: FromPair> {
+    start: usize,
+    end: usize,
+    inner: T,
+}
+
+impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Ast<T> {
+    type Error = pest::error::Error<Rule>;
+
+    fn try_from(pair: Pair<'_, Rule>) -> Result<Ast<T>, Self::Error> {
+        Ok(Self {
+            start: pair.as_span().start(),
+            end: pair.as_span().end(),
+            inner: T::from_pair(pair)?,
+        })
+    }
+}
+
+impl<T: FromPair> Deref for Ast<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
 }
 
 impl FromPair for bytes::Bytes {
