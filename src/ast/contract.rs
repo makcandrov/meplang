@@ -1,10 +1,10 @@
 use pest::iterators::Pair;
 
-use crate::ast::constant::Constant;
+use crate::ast::constant::RConstant;
 use crate::parser::parser::{Rule, FromPair, get_next};
-use crate::ast::attribute::Attribute;
-use crate::ast::block::Block;
-use crate::parser::parser::Ast;
+use crate::ast::attribute::RAttribute;
+use crate::ast::block::RBlock;
+use crate::parser::parser::Token;
 
 #[derive(Debug, Clone)]
 pub struct VarName(pub String);
@@ -18,20 +18,20 @@ impl FromPair for VarName {
 }
 
 #[derive(Debug, Clone)]
-pub struct Contract {
-    pub name: Ast<VarName>,
-    pub attributes: Vec<Ast<Attribute>>,
-    pub blocks: Vec<Ast<Block>>,
-    pub constants: Vec<Ast<Constant>>,
+pub struct RContract {
+    pub name: Token<VarName>,
+    pub attributes: Vec<Token<RAttribute>>,
+    pub blocks: Vec<Token<RBlock>>,
+    pub constants: Vec<Token<RConstant>>,
 }
 
-impl FromPair for Contract {
+impl FromPair for RContract {
     fn from_pair(contract_decl_with_attr: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> where Self: Sized {
         assert!(contract_decl_with_attr.as_rule() == Rule::contract_decl_with_attr);
     
         let mut inner = contract_decl_with_attr.into_inner();
 
-        let mut attributes = Vec::<Ast<Attribute>>::new();
+        let mut attributes = Vec::<Token<RAttribute>>::new();
         while let Some(attr_or_contract) = inner.next() {
             match attr_or_contract.as_rule() {
                 Rule::attribute => {
@@ -42,19 +42,19 @@ impl FromPair for Contract {
 
                     _ = get_next(&mut contract_decl_inner, Rule::contract_keyword);
 
-                    let name = Ast::<VarName>::try_from(
+                    let name = Token::<VarName>::try_from(
                         get_next(&mut contract_decl_inner, Rule::var_name)
                     )?;
 
-                    let mut blocks = Vec::<Ast<Block>>::new();
-                    let mut constants = Vec::<Ast<Constant>>::new();
+                    let mut blocks = Vec::<Token<RBlock>>::new();
+                    let mut constants = Vec::<Token<RConstant>>::new();
                     while let Some(contract_item) = contract_decl_inner.next() {
                         match contract_item.as_rule() {
                             Rule::block_decl_with_attr => {
-                                blocks.push(Ast::<Block>::try_from(contract_item)?);
+                                blocks.push(Token::<RBlock>::try_from(contract_item)?);
                             },
                             Rule::const_decl => {
-                                constants.push(Ast::<Constant>::try_from(contract_item)?);
+                                constants.push(Token::<RConstant>::try_from(contract_item)?);
                             },
                             _ => unreachable!(),
                         }

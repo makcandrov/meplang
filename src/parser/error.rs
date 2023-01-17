@@ -1,7 +1,7 @@
 use pest::{error::ErrorVariant, iterators::Pair, Position, Span};
 use crate::parser::parser::Rule;
 
-use super::parser::{FromPair, Ast};
+use super::parser::{FromPair, Token};
 
 pub fn new_error_from_pair(pair: &Pair<Rule>, message: String) -> pest::error::Error<Rule> {
     pest::error::Error::<Rule>::new_from_span(
@@ -17,7 +17,7 @@ pub fn new_generic_error(message: String) -> pest::error::Error<Rule> {
     )
 }
 
-pub fn new_error_from_ast<T: FromPair>(code: &str, ast: &Ast<T>, message: &str) -> pest::error::Error<Rule> {
+pub fn new_error_from_ast<T: FromPair>(code: &str, ast: &Token<T>, message: &str) -> pest::error::Error<Rule> {
     pest::error::Error::<Rule>::new_from_span(
         ErrorVariant::<Rule>::CustomError { message: message.to_owned() }, 
         Span::new(code, ast.start, ast.end).unwrap(),

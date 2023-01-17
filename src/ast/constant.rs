@@ -1,18 +1,18 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
-use crate::{parser::{parser::{Rule, FromPair}, error::new_error_from_pair}, ast::affectation::Litteral};
+use crate::{parser::{parser::{Rule, FromPair}, error::new_error_from_pair}, ast::affectation::RLitteral};
 
-use super::affectation::Affectation;
+use super::affectation::RAffectation;
 
 
 #[derive(Default, Debug, Clone)]
-pub struct Constant {
+pub struct RConstant {
     pub name: String, 
     pub value: Bytes,
 }
 
-impl FromPair for Constant {
-    fn from_pair(const_decl: Pair<Rule>) -> Result<Constant, pest::error::Error<Rule>> {
+impl FromPair for RConstant {
+    fn from_pair(const_decl: Pair<Rule>) -> Result<RConstant, pest::error::Error<Rule>> {
         assert!(const_decl.as_rule() == Rule::const_decl);
 
         let mut const_decl_inner = const_decl.into_inner();
@@ -23,13 +23,13 @@ impl FromPair for Constant {
         assert!(const_decl_inner.next().unwrap().as_rule() == Rule::semicolon);
         assert!(const_decl_inner.next() == None);
 
-        let Affectation { name, value } = Affectation::from_pair(affectation.clone())?;
+        let RAffectation { name, value } = RAffectation::from_pair(affectation.clone())?;
 
         let value = match value {
-            Litteral::String(_) => {
+            RLitteral::String(_) => {
                 return Err(new_error_from_pair(&affectation, "expected hex litteral".to_owned()))
             },
-            Litteral::Bytes(value) => value,
+            RLitteral::Bytes(value) => value,
         };
         Ok(Self { name, value })
     }

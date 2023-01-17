@@ -6,7 +6,7 @@ use crate::{opcode::OpCode, parser::parser::FromPair};
 
 
 #[derive(Debug, Clone)]
-pub enum Attribute {
+pub enum RAttribute {
     Assume(AssumeAttribute),
 }
 
@@ -37,7 +37,7 @@ impl FromStr for AssumableOpCode {
     }
 }
 
-impl FromPair for Attribute {
+impl FromPair for RAttribute {
     fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<crate::parser::parser::Rule>> {
         todo!()
     }

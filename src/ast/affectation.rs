@@ -3,19 +3,19 @@ use pest::iterators::Pair;
 use crate::parser::parser::{Rule, FromPair};
 
 #[derive(Debug, Clone)]
-pub struct Affectation {
+pub struct RAffectation {
     pub name: String,
-    pub value: Litteral,
+    pub value: RLitteral,
 }
 
 #[derive(Debug, Clone)]
-pub enum Litteral {
+pub enum RLitteral {
     String(String),
     Bytes(Bytes),
 }
 
-impl FromPair for Affectation {
-    fn from_pair(expr: Pair<Rule>) -> Result<Affectation, pest::error::Error<Rule>> {
+impl FromPair for RAffectation {
+    fn from_pair(expr: Pair<Rule>) -> Result<RAffectation, pest::error::Error<Rule>> {
         assert!(expr.as_rule() == Rule::affectation);
 
         let mut affectation_inner = expr.into_inner();
@@ -32,21 +32,21 @@ impl FromPair for Affectation {
 
         Ok(Self {
             name: name.as_str().to_owned(),
-            value: Litteral::from_pair(value)?,
+            value: RLitteral::from_pair(value)?,
         })
     }
 }
 
-impl FromPair for Litteral {
-    fn from_pair(litteral: Pair<Rule>) -> Result<Litteral, pest::error::Error<Rule>> {
+impl FromPair for RLitteral {
+    fn from_pair(litteral: Pair<Rule>) -> Result<RLitteral, pest::error::Error<Rule>> {
         assert!(litteral.as_rule() == Rule::litteral);
 
         let mut litteral_inner = litteral.into_inner();
         let string_or_hex_litteral = litteral_inner.next().unwrap();
 
         let res = match string_or_hex_litteral.as_rule() {
-            Rule::string_litteral => Litteral::String(String::from_pair(string_or_hex_litteral)?),
-            Rule::hex_litteral => Litteral::Bytes(Bytes::from_pair(string_or_hex_litteral)?),
+            Rule::string_litteral => RLitteral::String(String::from_pair(string_or_hex_litteral)?),
+            Rule::hex_litteral => RLitteral::Bytes(Bytes::from_pair(string_or_hex_litteral)?),
             _ => unreachable!(),
         };
 

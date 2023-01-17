@@ -1,12 +1,12 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
-use crate::{ast::attribute::Attribute, parser::parser::FromPair};
+use crate::{ast::attribute::RAttribute, parser::parser::FromPair};
 use crate::parser::parser::{Rule, map_unique_child, get_next};
 
 #[derive(Debug, Clone, Default)]
-pub struct Block {
+pub struct RBlock {
     name: String,
-    attributes: Vec<Attribute>,
+    attributes: Vec<RAttribute>,
     lines: Vec<BlockLine>,
 }
 
@@ -35,7 +35,7 @@ pub struct VariableField {
     pub field: String,
 }
 
-impl FromPair for Block {
+impl FromPair for RBlock {
     fn from_pair(block_decl_with_attr: pest::iterators::Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(block_decl_with_attr.as_rule() == Rule::block_decl_with_attr);
 

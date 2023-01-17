@@ -1,4 +1,4 @@
-use ast::file::MeplangFile;
+use ast::file::RFile;
 use env_logger::fmt::Color;
 use log::Level;
 use std::io::Write;
@@ -37,7 +37,7 @@ fn main() {
     let contract_name = "contr".to_owned();
     let input = std::fs::read_to_string("input.mep").unwrap();
 
-    match MeplangFile::new(input.clone()) {
+    match RFile::new(input.clone()) {
         Ok(meplang_file) => {
             dbg!(&meplang_file);
             match pre_process(&input, meplang_file, contract_name) {
