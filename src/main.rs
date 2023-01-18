@@ -40,7 +40,7 @@ fn main() {
 
     match RFile::new(input.clone()) {
         Ok(meplang_file) => {
-            dbg!(&meplang_file);
+            // dbg!(&meplang_file);
             match pre_process(&input, meplang_file, contract_name) {
                 Ok(res) => {
                     dbg!(res);
