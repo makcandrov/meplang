@@ -1,13 +1,12 @@
+use crate::parser::parser::{get_next, FromPair, Located, Rule};
 use bytes::Bytes;
 use pest::iterators::Pair;
-use crate::{parser::{parser::{Rule, FromPair, Located}, error::new_error_from_pair}, ast::affectation::RLitteral};
 
-use super::{affectation::RAffectation, contract::VarName};
-
+use super::contract::VarName;
 
 #[derive(Debug, Clone)]
 pub struct RConstant {
-    pub name: Located<VarName>, 
+    pub name: Located<VarName>,
     pub value: Located<Bytes>,
 }
 
@@ -16,22 +15,19 @@ impl FromPair for RConstant {
         assert!(const_decl.as_rule() == Rule::const_decl);
 
         let mut const_decl_inner = const_decl.into_inner();
-        assert!(const_decl_inner.next().unwrap().as_rule() == Rule::const_keyword);
-        let affectation = const_decl_inner.next().unwrap();
-        assert!(affectation.as_rule() == Rule::affectation);
-        
-        assert!(const_decl_inner.next().unwrap().as_rule() == Rule::semicolon);
+
+        let _ = get_next(&mut const_decl_inner, Rule::const_keyword);
+
+        let name = Located::<VarName>::from_pair(get_next(&mut const_decl_inner, Rule::var_name))?;
+
+        let _ = get_next(&mut const_decl_inner, Rule::equal);
+
+        let value =
+            Located::<Bytes>::from_pair(get_next(&mut const_decl_inner, Rule::hex_litteral))?;
+
+        let _ = get_next(&mut const_decl_inner, Rule::semicolon);
         assert!(const_decl_inner.next() == None);
 
-        let RAffectation { name, value } = RAffectation::from_pair(affectation.clone())?;
-
-        let value = match value.inner {
-            RLitteral::String(_) => {
-                return Err(new_error_from_pair(&affectation, "expected hex litteral".to_owned()))
-            },
-            RLitteral::Bytes(value) => value,
-        };
         Ok(Self { name, value })
     }
 }
-

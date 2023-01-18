@@ -75,12 +75,11 @@ impl FromPair for String {
     fn from_pair(string_litteral: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(string_litteral.as_rule() == Rule::string_litteral);
         
-        let mut string_inner = string_litteral.into_inner();
-        let res = string_inner.next().unwrap();
-        assert!(res.as_rule() == Rule::string_inner);
-        assert!(string_inner.next() == None);
-
-        Ok(res.as_str().to_owned())
+        Ok(map_unique_child(string_litteral, |string_inner| {
+            assert!(string_inner.as_rule() == Rule::string_inner);
+            string_inner.as_str().to_owned()
+        }))
     }
 }
+
 

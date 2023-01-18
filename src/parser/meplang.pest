@@ -27,7 +27,7 @@ attribute = {
     ~ "]"
 }
 
-const_decl = { const_keyword ~ affectation ~ semicolon }
+const_decl = { const_keyword ~ var_name ~ equal ~ hex_litteral ~ semicolon }
 
 function = ${
 	var_name ~ WHITESPACE* ~ "("

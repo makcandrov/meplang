@@ -17,7 +17,7 @@ pub fn new_generic_error(message: String) -> pest::error::Error<Rule> {
     )
 }
 
-pub fn new_error_from_ast<T: FromPair>(code: &str, ast: &Located<T>, message: &str) -> pest::error::Error<Rule> {
+pub fn new_error_from_located<T: FromPair>(code: &str, ast: &Located<T>, message: &str) -> pest::error::Error<Rule> {
     pest::error::Error::<Rule>::new_from_span(
         ErrorVariant::<Rule>::CustomError { message: message.to_owned() }, 
         Span::new(code, ast.start, ast.end).unwrap(),

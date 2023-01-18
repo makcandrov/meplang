@@ -2,8 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use bytes::Bytes;
 
+use crate::ast::attribute::WithAttributes;
 use crate::ast::contract::RContract;
-use crate::parser::error::{new_error_from_ast, new_generic_error};
+use crate::parser::error::{new_error_from_located, new_generic_error};
 use crate::{parser::parser::Located, ast::file::RFile};
 use crate::parser::parser::Rule;
 
@@ -28,10 +29,11 @@ pub fn pre_process(
     let mut main_index: Option<usize> = None;
     let mut contract_names = HashMap::<String, usize>::new();
 
-    for r_contract in &file.0 {
+    for r_contract_with_attr in &file.0 {
+        let r_contract = &r_contract_with_attr.inner.inner;
         let name = r_contract.name();
         if contract_names.insert(name.to_owned(), contract_names.len()).is_some() {
-            return Err(new_error_from_ast(
+            return Err(new_error_from_located(
                 code,
                 &r_contract.name,
                 &format!("Name `{}` already used", name)
@@ -76,9 +78,9 @@ pub fn pre_process(
 
     for index in 0..file.0.len() {
         if pre_processed_contracts.get(&index).is_none() {
-            log::warn!("{}", new_error_from_ast(
+            log::warn!("{}", new_error_from_located(
                 code,
-                &file.0[index].name,
+                file.0[index].inner_located(),
                 &format!("Unused contract")
             ));
         }
@@ -89,24 +91,25 @@ pub fn pre_process(
 
 pub fn pre_process_contract(
     code: &str,
-    r_contract: &Located<RContract>,
+    r_contract_with_attr: &Located<WithAttributes<RContract>>,
     main: bool,
     contract_names: &HashMap<String, usize>,
 ) -> Result<Contract, pest::error::Error<Rule>> {
     let mut constants = HashMap::<String, Bytes>::new();
     let mut contract_dependencies = HashSet::<usize>::new();
 
+    let r_contract = &r_contract_with_attr.inner.inner;
     for constant in &r_contract.constants {
         let value = constant.value.inner.clone();
         if value.len() >= 32 {
-            return Err(new_error_from_ast(
+            return Err(new_error_from_located(
                 code,
                 &constant.value,
                 &format!("Constants cannot exceed 32 bytes")
             ));
         }
         if constants.insert(constant.name.0.clone(), constant.value.inner.clone()).is_some() {
-            return Err(new_error_from_ast(
+            return Err(new_error_from_located(
                 code,
                 &constant.name,
                 &format!("Name {} already used", constant.name.0)
@@ -115,6 +118,28 @@ pub fn pre_process_contract(
     }
 
     let mut blocks = Vec::<Block>::new();
+    let mut main_index: Option<usize> = None;
+    let mut block_names = HashMap::<String, usize>::new();
+
+    // for r_block in &r_contract.blocks {
+    //     let name = r_block.name();
+    //     if contract_names.insert(name.to_owned(), contract_names.len()).is_some() {
+    //         return Err(new_error_from_ast(
+    //             code,
+    //             &r_contract.name,
+    //             &format!("Name `{}` already used", name)
+    //         ));
+    //     }
+    //     if name == &contract_name {
+    //         main_index = Some(contract_names.len() - 1);
+    //     }
+    // }
+
+    // let Some(main_index) = main_index else {
+    //     return Err(new_generic_error(
+    //         format!("Contract `{}` not found", contract_name)
+    //     ));
+    // };
 
     Ok(Contract {
         main,

@@ -6,9 +6,10 @@ use crate::parser::parser::MeplangParser;
 use crate::parser::parser::Rule;
 use super::contract::RContract;
 use crate::parser::parser::Located;
+use crate::ast::attribute::WithAttributes;
 
 #[derive(Default, Debug, Clone)]
-pub struct RFile(pub Vec<Located<RContract>>);
+pub struct RFile(pub Vec<Located<WithAttributes<RContract>>>);
 
 impl RFile {
     pub fn new(code: String) -> Result<Self, pest::error::Error<Rule>> {
@@ -28,14 +29,16 @@ impl FromPair for RFile {
     fn from_pair(file: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(file.as_rule() == Rule::file);
     
-        let mut contracts = Vec::<Located<RContract>>::new();
+        let mut contracts = Vec::<Located<WithAttributes<RContract>>>::new();
         match file.as_rule() {
             Rule::file => {
                 for contract_decl_with_attr in file.into_inner() {
                     match contract_decl_with_attr.as_rule() {
                         Rule::EOI => (),
                         Rule::contract_decl_with_attr => {
-                            contracts.push(Located::<RContract>::from_pair(contract_decl_with_attr)?);
+                            contracts.push(Located::<WithAttributes<RContract>>::from_pair(
+                                contract_decl_with_attr
+                            )?);
                         },
                         _ => unreachable!(),
                     }

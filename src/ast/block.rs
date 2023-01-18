@@ -1,13 +1,14 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
 use crate::{ast::attribute::RAttribute, parser::parser::FromPair};
-use crate::parser::parser::{Rule, map_unique_child, get_next};
+use crate::parser::parser::{Rule, map_unique_child, get_next, Located};
 
-#[derive(Debug, Clone, Default)]
+use super::contract::VarName;
+
+#[derive(Debug, Clone)]
 pub struct RBlock {
-    name: String,
-    attributes: Vec<RAttribute>,
-    lines: Vec<BlockLine>,
+    name: Located<VarName>,
+    lines: Vec<Located<BlockLine>>,
 }
 
 #[derive(Debug, Clone)]
@@ -36,42 +37,29 @@ pub struct VariableField {
 }
 
 impl FromPair for RBlock {
-    fn from_pair(block_decl_with_attr: pest::iterators::Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(block_decl_with_attr.as_rule() == Rule::block_decl_with_attr);
+    fn from_pair(block_decl: pest::iterators::Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(block_decl.as_rule() == Rule::block_decl);
 
-        let mut res = Self::default();
-        let mut seeking_attributes = true;
-        for attr_or_block in block_decl_with_attr.into_inner() {
-            match attr_or_block.as_rule() {
-                Rule::attribute => {
-                    assert!(seeking_attributes);
-                },
-                Rule::block_decl => {
-                    seeking_attributes = false;
-                    let mut block_decl_inner = attr_or_block.into_inner();
+        let mut block_decl_inner = block_decl.into_inner();
 
-                    assert!(block_decl_inner.next().unwrap().as_rule() == Rule::block_keyword);
+        _ = get_next(&mut block_decl_inner, Rule::block_keyword);
 
-                    let block_name = block_decl_inner.next().unwrap();
-                    assert!(block_name.as_rule() == Rule::var_name);
-                    
-                    res.name = block_name.as_str().to_owned();
+        let name = Located::<VarName>::from_pair(
+            get_next(&mut block_decl_inner, Rule::var_name)
+        )?;
 
-                    while let Some(block_content) = block_decl_inner.next() {
-                        assert!(block_content.as_rule() == Rule::block_content);
-                        res.lines.push(
-                            map_unique_child(block_content, |block_line| {
-                                assert!(block_line.as_rule() == Rule::block_line);
-                                BlockLine::from_pair(block_line)
-                            })?
-                        );
-
-                    }
-                },
-                _ => unreachable!(),
-            }
+        let mut lines = Vec::<Located<BlockLine>>::new();
+        while let Some(block_content) = block_decl_inner.next() {
+            assert!(block_content.as_rule() == Rule::block_content);
+            lines.push(
+                map_unique_child(block_content, |block_line| {
+                    assert!(block_line.as_rule() == Rule::block_line);
+                    Located::<BlockLine>::from_pair(block_line)
+                })?
+            );
         }
-        Ok(res)
+
+        Ok(RBlock { name, lines })
     }
 }
 
