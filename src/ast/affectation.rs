@@ -33,8 +33,8 @@ impl FromPair for RAffectation {
         assert!(affectation_inner.next() == None);
 
         Ok(Self {
-            name: Located::<VarName>::try_from(name)?,
-            value: Located::<RLitteral>::try_from(value)?,
+            name: Located::<VarName>::from_pair(name)?,
+            value: Located::<RLitteral>::from_pair(value)?,
         })
     }
 }
@@ -47,8 +47,8 @@ impl FromPair for RLitteral {
         let string_or_hex_litteral = litteral_inner.next().unwrap();
 
         let res = match string_or_hex_litteral.as_rule() {
-            Rule::string_litteral => RLitteral::String(Located::<String>::try_from(string_or_hex_litteral)?),
-            Rule::hex_litteral => RLitteral::Bytes(Located::<Bytes>::try_from(string_or_hex_litteral)?),
+            Rule::string_litteral => RLitteral::String(Located::<String>::from_pair(string_or_hex_litteral)?),
+            Rule::hex_litteral => RLitteral::Bytes(Located::<Bytes>::from_pair(string_or_hex_litteral)?),
             _ => unreachable!(),
         };
 

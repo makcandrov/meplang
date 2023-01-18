@@ -17,12 +17,24 @@ impl FromPair for VarName {
     }
 }
 
+impl VarName {
+    pub fn name(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RContract {
     pub name: Located<VarName>,
     pub attributes: Vec<Located<RAttribute>>,
     pub blocks: Vec<Located<RBlock>>,
     pub constants: Vec<Located<RConstant>>,
+}
+
+impl RContract {
+    pub fn name(&self) -> &str {
+        &self.name.name()
+    }
 }
 
 impl FromPair for RContract {
@@ -42,7 +54,7 @@ impl FromPair for RContract {
 
                     _ = get_next(&mut contract_decl_inner, Rule::contract_keyword);
 
-                    let name = Located::<VarName>::try_from(
+                    let name = Located::<VarName>::from_pair(
                         get_next(&mut contract_decl_inner, Rule::var_name)
                     )?;
 
@@ -51,10 +63,10 @@ impl FromPair for RContract {
                     while let Some(contract_item) = contract_decl_inner.next() {
                         match contract_item.as_rule() {
                             Rule::block_decl_with_attr => {
-                                blocks.push(Located::<RBlock>::try_from(contract_item)?);
+                                blocks.push(Located::<RBlock>::from_pair(contract_item)?);
                             },
                             Rule::const_decl => {
-                                constants.push(Located::<RConstant>::try_from(contract_item)?);
+                                constants.push(Located::<RConstant>::from_pair(contract_item)?);
                             },
                             _ => unreachable!(),
                         }

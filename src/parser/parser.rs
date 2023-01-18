@@ -31,16 +31,15 @@ pub fn get_next<'a, 'rule>(pairs: &'a mut Pairs<'rule, Rule>, expected: Rule) ->
 }
 
 #[derive(Debug, Clone)]
-pub struct Located<T: FromPair> {
+pub struct Located<T> {
     pub start: usize,
     pub end: usize,
     pub inner: T,
 }
 
-impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Located<T> {
-    type Error = pest::error::Error<Rule>;
+impl<T: FromPair> FromPair for Located<T> {
 
-    fn try_from(pair: Pair<'_, Rule>) -> Result<Located<T>, Self::Error> {
+    fn from_pair(pair: Pair<'_, Rule>) -> Result<Located<T>, pest::error::Error<Rule>> {
         Ok(Self {
             start: pair.as_span().start(),
             end: pair.as_span().end(),
@@ -49,7 +48,7 @@ impl<T: FromPair> TryFrom<Pair<'_, Rule>> for Located<T> {
     }
 }
 
-impl<T: FromPair> Deref for Located<T> {
+impl<T> Deref for Located<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -61,17 +60,11 @@ impl FromPair for bytes::Bytes {
     fn from_pair(hex_litteral: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(hex_litteral.as_rule() == Rule::hex_litteral);
 
-        let hex_str = format!(
-            "{}{}",
-            if hex_litteral.as_str().len() % 2 == 0 {
-                ""
-            } else {
-                "0"
-            },
-            hex_litteral.as_str().strip_prefix("0x").unwrap(),
-        );
+        if hex_litteral.as_str().len() % 2 != 0 {
+            return Err(new_error_from_pair(&hex_litteral, "Hex litterals must be odd size".to_owned()));
+        }
 
-        match hex::decode(hex_str) {
+        match hex::decode(hex_litteral.as_str().strip_prefix("0x").unwrap()) {
             Ok(decoded) => Ok(decoded.into()),
             Err(err) => Err(new_error_from_pair(&hex_litteral, err.to_string())),
         }

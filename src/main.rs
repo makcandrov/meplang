@@ -1,6 +1,6 @@
 use ast::file::RFile;
 use env_logger::fmt::Color;
-use log::Level;
+use log::{Level, LevelFilter};
 use std::io::Write;
 use crate::pre_processing::pre_processing::pre_process;
 
@@ -12,6 +12,7 @@ mod pre_processing;
 
 fn init_env_logger() {
     env_logger::builder()
+    .filter_level(LevelFilter::Info)
         .format(|buf, record| {
             let mut style = buf.style();
             style
@@ -39,7 +40,7 @@ fn main() {
 
     match RFile::new(input.clone()) {
         Ok(meplang_file) => {
-            dbg!(&meplang_file);
+            // dbg!(&meplang_file);
             match pre_process(&input, meplang_file, contract_name) {
                 Ok(res) => {
                     dbg!(res);
