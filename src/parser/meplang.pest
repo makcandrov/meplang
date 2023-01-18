@@ -21,9 +21,11 @@ contract_keyword = @{ "contract" ~ &WHITESPACE }
 
 affectation = { var_name ~ equal ~ litteral }
 
+attribute_arg = { affectation | var_name | litteral }
+
 attribute = {
 	"#[" ~ var_name ~ 
-    ("(" ~ affectation  ~ ")")?
+    ("(" ~ attribute_arg ~ ")")?
     ~ "]"
 }
 
