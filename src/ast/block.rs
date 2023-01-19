@@ -32,7 +32,8 @@ pub struct Function {
 
 #[derive(Debug, Clone)]
 pub enum Argument {
-    Var(Located<VariableField>),
+    VarField(Located<VariableField>),
+    Var(Located<VarName>),
     Bytes(Located<Bytes>),
 }
 
@@ -94,12 +95,15 @@ impl FromPair for Function {
             get_next(&mut function_inner, Rule::var_name)
         )?;
 
-        let arg = function_inner.next().unwrap();
-        let arg = match arg.as_rule() {
-            Rule::hex_litteral => Argument::Bytes(Located::<Bytes>::from_pair(arg)?),
-            Rule::var_field => Argument::Var(Located::<VariableField>::from_pair(arg)?),
-            _ => unreachable!(),
-        };
+        let arg = get_next(&mut function_inner, Rule::function_arg);
+        let arg = map_unique_child(arg, |child| {
+            match child.as_rule() {
+                Rule::hex_litteral => Ok(Argument::Bytes(Located::<Bytes>::from_pair(child)?)),
+                Rule::var_field => Ok(Argument::VarField(Located::<VariableField>::from_pair(child)?)),
+                Rule::var_name => Ok(Argument::Var(Located::<VarName>::from_pair(child)?)),
+                _ => unreachable!(),
+            }
+        })?;
 
         assert!(function_inner.next() == None);
 

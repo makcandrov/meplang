@@ -22,6 +22,7 @@ contract_keyword = @{ "contract" ~ &WHITESPACE }
 affectation = { var_name ~ equal ~ litteral }
 
 attribute_arg = { affectation | var_name | litteral }
+function_arg = { var_field | hex_litteral | var_name }
 
 attribute = {
 	"#[" ~ var_name ~ 
@@ -33,7 +34,7 @@ const_decl = { const_keyword ~ var_name ~ equal ~ hex_litteral ~ semicolon }
 
 function = ${
 	var_name ~ WHITESPACE* ~ "("
-    	~ WHITESPACE* ~ (var_field | hex_litteral) ~ WHITESPACE* ~
+    	~ WHITESPACE* ~ function_arg ~ WHITESPACE* ~
     ")"
 }
 

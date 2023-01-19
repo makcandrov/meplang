@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-use bytes::Bytes;
+use bytes::{Bytes, BytesMut};
 
 use crate::ast::attribute::WithAttributes;
 use crate::ast::block::{RBlock, RBlockLine};
@@ -22,21 +22,25 @@ pub struct Block {
 
 #[derive(Clone, Debug)]
 pub struct BlockItem {
-    assumes: HashMap<Bytes, u8>,
-    content: BlockItemContent,
+    pub assumes: HashMap<Bytes, u8>,
+    pub content: BlockItemContent,
 }
 
 #[derive(Clone, Debug)]
 pub enum BlockItemContent {
     Bytes(Bytes),
+    Contract(usize),
+    Block(usize),
     Push(Push),
 }
 
 #[derive(Clone, Debug)]
 pub enum Push {
     Constant(Bytes),
-    ContractRef(usize),
-    BlockLineRef { block: usize, line: usize },
+    ContractPc(usize),
+    ContractSize(usize),
+    BlockSize(usize),
+    BlockPc(usize),
 }
 
 pub fn pre_process(
@@ -182,6 +186,8 @@ pub fn pre_process_contract(
                 &r_contract.blocks[index_to_process],
                 &mut blocks_remapping_queue,
                 &constants,
+                contract_names,
+                contract_remapping_queue,
             )?
         );
     }
@@ -206,17 +212,43 @@ pub fn pre_process_block(
     r_block_with_attr: &Located<WithAttributes<RBlock>>,
     blocks_remapping_queue: &mut RemappingQueue<usize>,
     constants: &HashMap<String, Bytes>,
+    contract_names: &HashMap<String, usize>,
+    contract_remapping_queue: &mut RemappingQueue<usize>,
 ) -> Result<Block, pest::error::Error<Rule>> {
     let r_block = r_block_with_attr.inner();
 
     let mut items = Vec::<BlockItem>::new();
-    let mut current_bytes: Option<Bytes> = None;
+    let mut current_bytes: Option<BytesMut> = None;
     for line in &r_block.lines {
-        // match &line.inner {
-        //     RBlockLine::Var(var) => todo!(),
-        //     RBlockLine::Function(_) => todo!(),
-        //     RBlockLine::Bytes(_) => todo!(),
-        // }
+        match &line.inner {
+            RBlockLine::Var(var) => {
+                let name = var.name();
+                if let Some(bytes) = constants.get(name) {
+                    if let Some(c_bytes) = current_bytes.as_mut() {
+                        c_bytes.extend_from_slice(bytes);
+                    } else {
+                        current_bytes = Some(bytes[..].into());
+                    }
+                } else {
+                    if let Some(bytes) = current_bytes.take() {
+                        items.push(BlockItem {
+                            assumes: HashMap::new(),
+                            content: BlockItemContent::Bytes(bytes.into()),
+                        })
+                    }
+                    if let Some(contract_old_index) = contract_names.get(name) {
+                        contract_remapping_queue.insert_if_needed(*contract_old_index);
+                        let contract_new_index = contract_remapping_queue.remapping(contract_old_index).unwrap();
+                        items.push(BlockItem {
+                            assumes: HashMap::new(),
+                            content: BlockItemContent::Contract(contract_new_index),
+                        })
+                    }
+                }
+            },
+            RBlockLine::Function(_) => (),
+            RBlockLine::Bytes(_) => (),
+        }
     }
 
     Ok(Block { items })
