@@ -37,16 +37,23 @@ fn main() {
     let contract_name = "contr".to_owned();
     let input = std::fs::read_to_string("input.mep").unwrap();
 
-    match RFile::new(input.clone()) {
-        Ok(meplang_file) => {
-            // dbg!(&meplang_file);
-            match pre_process(&input, meplang_file, contract_name) {
-                Ok(res) => {
-                    dbg!(res);
-                }
-                Err(err) => log::error!("Parsing failed:\n{}", err),
-            };
-        }
-        Err(err) => log::error!("Parsing failed:\n{}", err),
+    let r_file = match RFile::new(input.clone()) {
+        Ok(r_file) => r_file,
+        Err(err) => {
+            log::error!("Parsing failed:\n{}", err);
+            return;
+        },
     };
+
+    // dbg!(&meplang_file);
+    
+    let pre_processed = match pre_process(&input, r_file, contract_name) {
+        Ok(pre_processed) => pre_processed,
+        Err(err) => {
+            log::error!("Pre-processing failed:\n{}", err);
+            return;
+        },
+    };
+
+    dbg!(&pre_processed);
 }
