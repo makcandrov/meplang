@@ -1,55 +1,64 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
-COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)*}
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)* }
 
 dot = { "." }
 semicolon = { ";" }
-equal = { "=" }
+eq = { "=" }
+open_paren = { "(" }
+close_paren = { ")" }
+open_brace = { "{" }
+close_brace = { "}" }
+star = { "*" }
+esp = { "&" }
 
-string_inner = ${(!"\"" ~ ANY)*}
+string_inner = ${ (!"\"" ~ ANY)* }
 
 string_litteral = @{ "\"" ~ string_inner ~ "\"" }
 hex_litteral = @{"0x" ~ HEX_DIGIT * ~ !ASCII_ALPHANUMERIC }
 
-litteral = { string_litteral | hex_litteral }
+hex_or_string_litteral = { string_litteral | hex_litteral }
 
-var_name = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
-var_field = ${ var_name ~ dot ~ var_name }
+variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+variable_with_field = ${ variable ~ dot ~ variable }
 
 const_keyword = @{ "const" ~ &WHITESPACE }
 block_keyword = @{ "block" ~ &WHITESPACE }
 contract_keyword = @{ "contract" ~ &WHITESPACE }
 
-affectation = { var_name ~ equal ~ litteral }
+affectation = { variable ~ eq ~ hex_or_string_litteral }
 
-attribute_arg = { affectation | var_name | litteral }
-function_arg = { var_field | hex_litteral | var_name }
+attribute_arg = { affectation | variable | hex_or_string_litteral }
+function_arg = { variable_with_field | hex_litteral | variable }
 
 attribute = {
-	"#[" ~ var_name ~ 
-    ("(" ~ attribute_arg ~ ")")?
+	"#[" ~ variable ~ 
+    (open_paren ~ attribute_arg ~ close_paren)?
     ~ "]"
 }
 
-const_decl = { const_keyword ~ var_name ~ equal ~ hex_litteral ~ semicolon }
+const_decl = { const_keyword ~ variable ~ eq ~ hex_litteral ~ semicolon }
 
 function = ${
-	var_name ~ WHITESPACE* ~ "("
+	variable ~ WHITESPACE* ~ open_paren
     	~ WHITESPACE* ~ function_arg ~ WHITESPACE* ~
-    ")"
+    close_paren
 }
 
-block_line = ${
+block_ref = { (star ~ variable)| (esp ~  (variable_with_field | variable )) }
+
+block_item = ${
 	hex_litteral |
+	block_ref |
 	function |
-	var_name ~ !(WHITESPACE* ~ "(")
+	variable ~ !(WHITESPACE* ~ open_paren)
 }
 
-block_content = @{block_line ~ &(WHITESPACE | "}" | EOI)}
+block_item_with_attr = { attribute* ~ block_item }
 
 block_decl = {
-	block_keyword ~ var_name ~ "{" ~
-    	block_content*
-     ~ "}"
+	block_keyword ~ variable ~ open_brace ~
+    	block_item_with_attr*
+     ~ close_brace
 }
 
 block_decl_with_attr = {
@@ -57,9 +66,9 @@ block_decl_with_attr = {
 }
 
 contract_decl = {
-	contract_keyword ~ var_name ~ "{" ~
+	contract_keyword ~ variable ~ open_brace ~
     	(block_decl_with_attr | const_decl)*
-    ~ "}"
+    ~ close_brace
 }
 
 contract_decl_with_attr = {
