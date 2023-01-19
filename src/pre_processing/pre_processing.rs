@@ -5,13 +5,18 @@ use bytes::{Bytes, BytesMut};
 
 use crate::ast::attribute::WithAttributes;
 use crate::ast::block::{RBlock};
+use crate::ast::constant::RConstant;
 use crate::ast::contract::RContract;
 use crate::parser::error::{new_error_from_located, new_generic_error};
 use crate::{parser::parser::Located, ast::file::RFile};
 use crate::parser::parser::Rule;
 
+use super::attribute::Attribute;
+use super::queue::DedupQueue;
+
 #[derive(Clone, Default, Debug)]
 pub struct Contract {
+    pub dependencies: HashSet<usize>,
     pub blocks: Vec<Block>,
 }
 
@@ -44,62 +49,68 @@ pub enum Push {
 }
 
 pub fn pre_process(
-    code: &str,
+    input: &str,
     file: RFile,
     contract_name: String,
 ) -> Result<Vec<Contract>, pest::error::Error<Rule>> {
-    // let mut main_index: Option<usize> = None;
-    // let mut contract_names = HashMap::<String, usize>::new();
+    let mut main_index: Option<usize> = None;
+    let mut contract_names = HashMap::<String, usize>::new();
+    let mut contract_attributes = Vec::<Vec<Attribute>>::with_capacity(file.0.len());
 
-    // for r_contract_with_attr in &file.0 {
-    //     let r_contract = &r_contract_with_attr.inner.inner;
-    //     let name = r_contract.name();
-    //     if contract_names.insert(name.to_owned(), contract_names.len()).is_some() {
-    //         return Err(new_error_from_located(
-    //             code,
-    //             &r_contract.name,
-    //             &format!("Name `{}` already used", name)
-    //         ));
-    //     }
-    //     if name == &contract_name {
-    //         main_index = Some(contract_names.len() - 1);
-    //     }
-    // }
+    for r_contract_with_attr in &file.0 {
+        contract_attributes.push(Vec::with_capacity(r_contract_with_attr.attributes.len()));
+        for r_attribute in &r_contract_with_attr.attributes {
+            let attribute = Attribute::from_r_attribute(input, r_attribute)?;
+            if attribute.is_contract_attribute() {
+                contract_attributes.last_mut().unwrap().push(
+                    Attribute::from_r_attribute(input, r_attribute)?
+                );
+            } else {
+                return Err(new_error_from_located(input, r_attribute, "Invalid contract argument"));
+            }
+        }
 
-    // let Some(main_index) = main_index else {
-    //     return Err(new_generic_error(
-    //         format!("Contract `{}` not found", contract_name)
-    //     ));
-    // };
+        let r_contract = &r_contract_with_attr.inner.inner;
+        let name = r_contract.name_str();
+        if contract_names.insert(name.to_owned(), contract_names.len()).is_some() {
+            return Err(new_error_from_located(
+                input,
+                &r_contract.name,
+                &format!("Name `{}` already used", name)
+            ));
+        }
+        if name == &contract_name {
+            main_index = Some(contract_names.len() - 1);
+        }
+    }
+    dbg!(&contract_attributes);
 
-    let mut contracts = Vec::<Contract>::new();
-    // let mut contract_remapping_queue = RemappingQueue::<usize>::default();
-    // contract_remapping_queue.insert_if_needed(main_index);
+    let Some(main_index) = main_index else {
+        return Err(new_generic_error(
+            format!("Contract `{}` not found", contract_name)
+        ));
+    };
 
-    // while let Some(index_to_process) = contract_remapping_queue.pop() {
-    //     contracts.push(
-    //         pre_process_contract(
-    //             code,
-    //             &file.0[index_to_process],
-    //             &mut contract_remapping_queue,
-    //             &contract_names,
-    //         )?
-    //     );
+    let mut contracts = HashMap::<usize, Contract>::new();
+    let mut contracts_queue = DedupQueue::<usize>::default();
+    contracts_queue.insert_if_needed(main_index);
 
-        // for dependency in &contract.contract_dependencies {
-        //     if 
-        //         pre_processed_contracts.get(dependency).is_some() ||
-        //         pre_processing_queue.contains(dependency) 
-        //     {
-        //         return Err(new_generic_error(
-        //             format!("Recursive contract dependencies unhandled")
-        //         ));
-        //     }
-        //     pre_processing_queue.push(*dependency);
-        // }
+    while let Some(index_to_process) = contracts_queue.pop() {
+        let contract = pre_process_contract(
+            input,
+            &file.0[index_to_process],
+            &contract_names,
+        )?;
 
-        // pre_processed_contracts.insert(index_to_process, contract);
-    // }
+        for dependency in &contract.dependencies {
+            contracts_queue.insert_if_needed(*dependency);
+        }
+
+        contracts.insert(
+            index_to_process,
+            contract,
+        );
+    }
 
     // for index in 0..file.0.len() {
     //     if contract_remapping_queue.remapping(&index).is_none() {
@@ -111,101 +122,114 @@ pub fn pre_process(
     //     }
     // }
 
-    Ok(contracts)
+    Ok(contracts.into_iter().map(|(_, c)| c).collect())
 }
 
-// pub fn pre_process_contract(
-//     code: &str,
-//     r_contract_with_attr: &Located<WithAttributes<RContract>>,
-//     contract_remapping_queue: &mut RemappingQueue<usize>,
-//     contract_names: &HashMap<String, usize>,
-// ) -> Result<Contract, pest::error::Error<Rule>> {
-//     let mut constants = HashMap::<String, Bytes>::new();
+pub fn extract_constants(
+    input: &str,
+    r_constants: &Vec<Located<RConstant>>,
+    contract_names: &HashMap<String, usize>,
+) -> Result<HashMap<String, Bytes>, pest::error::Error<Rule>> {
+    let mut constants = HashMap::<String, Bytes>::new();
 
-//     let r_contract = &r_contract_with_attr.inner.inner;
-//     for constant in &r_contract.constants {
-//         let value = constant.value.inner.clone();
-//         if value.len() >= 32 {
-//             return Err(new_error_from_located(
-//                 code,
-//                 &constant.value,
-//                 &format!("Constants cannot exceed 32 bytes")
-//             ));
-//         }
-//         if constants.insert(constant.name.0.clone(), constant.value.inner.clone()).is_some() {
-//             return Err(new_error_from_located(
-//                 code,
-//                 &constant.name,
-//                 &format!("Name {} already used", constant.name.0)
-//             ));
-//         }
-//     }
-//     let constants = constants;
+    for r_constant in r_constants {
+        let constant_name = r_constant.name_str();
+        let value = r_constant.value.inner.clone().0;
+        if value.len() >= 32 {
+            return Err(new_error_from_located(
+                input,
+                &r_constant.value,
+                &format!("Constants cannot exceed 32 bytes")
+            ));
+        }
+        if 
+            contract_names.contains_key(constant_name) ||
+            constants.insert(constant_name.to_owned(), value.clone()).is_some()
+        {
+            return Err(new_error_from_located(
+                input,
+                &r_constant.name,
+                &format!("Name {} already used", r_constant.name.0)
+            ));
+        }
+    }
+    Ok(constants)
+}
 
-//     let mut blocks = Vec::<Block>::new();
-//     let mut main_index: Option<usize> = None;
-//     let mut block_names = HashMap::<String, usize>::new();
+pub fn pre_process_contract(
+    code: &str,
+    r_contract_with_attr: &Located<WithAttributes<RContract>>,
+    contract_names: &HashMap<String, usize>,
+) -> Result<Contract, pest::error::Error<Rule>> {
+    let r_contract = &r_contract_with_attr.inner.inner;
 
-//     for r_block_with_attr in &r_contract.blocks {
-//         let r_block = r_block_with_attr.inner_located();
-//         let name = r_block.inner.name_str();
-//         if 
-//             contract_names.contains_key(name)||
-//             constants.contains_key(name) ||
-//             block_names.insert(name.to_owned(), block_names.len()).is_some()
-//         {
-//             return Err(new_error_from_located(
-//                 code,
-//                 &r_contract.name,
-//                 &format!("Name `{}` already used", name)
-//             ));
-//         }
-//         if name == "main" {
-//             main_index = Some(block_names.len() - 1);
-//         }
-//     }
+    let constants = extract_constants(
+        code,
+        &r_contract.constants,
+        contract_names,
+    )?;
 
-//     let Some(main_index) = main_index else {
-//         return Err(new_error_from_located(
-//             code,
-//             &r_contract,
-//             &format!("Block `main` not found in contract `{}`", r_contract.name())
-//         ));
-//     };
+    let mut main_index: Option<usize> = None;
+    let mut block_names = HashMap::<String, usize>::new();
 
+    for r_block_with_attr in &r_contract.blocks {
+        let r_block = r_block_with_attr.inner_located();
+        let name = r_block.inner.name_str();
+        if 
+            contract_names.contains_key(name)||
+            constants.contains_key(name) ||
+            block_names.insert(name.to_owned(), block_names.len()).is_some()
+        {
+            return Err(new_error_from_located(
+                code,
+                &r_contract.name,
+                &format!("Name `{}` already used", name)
+            ));
+        }
+        if name == "main" {
+            main_index = Some(block_names.len() - 1);
+        }
+    }
 
-//     let mut blocks = Vec::<Block>::new();
+    let Some(main_index) = main_index else {
+        return Err(new_error_from_located(
+            code,
+            &r_contract,
+            &format!("Block `main` not found in contract `{}`", r_contract.name_str())
+        ));
+    };
 
-//     let mut blocks_remapping_queue = RemappingQueue::<usize>::default();
-//     blocks_remapping_queue.insert_if_needed(main_index);
+    let mut blocks = Vec::<Block>::new();
+    let mut dependencies = HashSet::<usize>::new();
 
-//     while let Some(index_to_process) = blocks_remapping_queue.pop() {
-//         blocks.push(
-//             pre_process_block(
-//                 code,
-//                 &r_contract.blocks[index_to_process],
-//                 &mut blocks_remapping_queue,
-//                 &constants,
-//                 contract_names,
-//                 contract_remapping_queue,
-//             )?
-//         );
-//     }
+    let mut blocks_queue = DedupQueue::<usize>::default();
+    blocks_queue.insert_if_needed(main_index);
 
-//     for index in 0..r_contract.blocks.len() {
-//         if blocks_remapping_queue.remapping(&index).is_none() {
-//             log::warn!("{}", new_error_from_located(
-//                 code,
-//                 r_contract.blocks[index].inner_located(),
-//                 &format!("Unused contract `{}`", r_contract.blocks[index].inner().name_str())
-//             ));
-//         }
-//     }
+    while let Some(index_to_process) = blocks_queue.pop() {
+        // let block = pre_process_block(
+        //     code,
+        //     &r_contract.blocks[index_to_process],
+        //     &mut blocks_queue,
+        //     &constants,
+        //     contract_names,
+        //     blocks_queue,
+        // )?;
 
-//     Ok(Contract {
-//         blocks,
-//     })
-// }
+        // blocks.insert(index_to_process, block);
+    }
+
+    // for index in 0..r_contract.blocks.len() {
+    //     if blocks_queue.remapping(&index).is_none() {
+    //         log::warn!("{}", new_error_from_located(
+    //             code,
+    //             r_contract.blocks[index].inner_located(),
+    //             &format!("Unused contract `{}`", r_contract.blocks[index].inner().name_str())
+    //         ));
+    //     }
+    // }
+
+    Ok(Contract { blocks, dependencies })
+}
 
 // pub fn pre_process_block(
 //     code: &str,
@@ -254,28 +278,3 @@ pub fn pre_process(
 //     Ok(Block { items })
 // }
 
-// #[derive(Default, Clone, Debug)]
-// pub struct RemappingQueue<T> {
-//     queue: Vec<T>,
-//     remappings: HashMap<T, usize>,
-// }
-
-// impl<T: Eq + Hash + Clone> RemappingQueue<T> {
-//     pub fn insert_if_needed(&mut self, item: T) -> bool {
-//         if self.remapping(&item).is_some() {
-//             false
-//         } else {
-//             self.remappings.insert(item.clone(), self.remappings.len());
-//             self.queue.push(item);
-//             true
-//         }
-//     }
-
-//     pub fn pop(&mut self) -> Option<T> {
-//         self.queue.pop()
-//     }
-
-//     pub fn remapping(&self, item: &T) -> Option<usize> {
-//         self.remappings.get(item).map(|x| *x)
-//     }
-// }

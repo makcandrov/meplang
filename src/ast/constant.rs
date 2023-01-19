@@ -12,6 +12,12 @@ pub struct RConstant {
     pub value: Located<RHexLitteral>,
 }
 
+impl RConstant {
+    pub fn name_str(&self) -> &str {
+        self.name.as_str()
+    }
+}
+
 impl FromPair for RConstant {
     fn from_pair(const_decl: Pair<Rule>) -> Result<RConstant, pest::error::Error<Rule>> {
         assert!(const_decl.as_rule() == Rule::const_decl);

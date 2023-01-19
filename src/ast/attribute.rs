@@ -11,6 +11,12 @@ pub struct REquality {
     pub value: Located<RHexOrStringLitteral>,
 }
 
+impl REquality {
+    pub fn name_str(&self) -> &str {
+        self.name.as_str()
+    }
+}
+
 impl FromPair for REquality {
     fn from_pair(equality: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(equality.as_rule() == Rule::equality);
@@ -79,6 +85,12 @@ impl FromPair for RAttributeArg {
 pub struct RAttribute {
     pub name: Located<RVariable>,
     pub arg: Option<Located<RAttributeArg>>,
+}
+
+impl RAttribute {
+    pub fn name_str(&self) -> &str {
+        self.name.as_str()
+    }
 }
 
 impl FromPair for RAttribute {

@@ -6,7 +6,7 @@ use bytes::Bytes;
 use pest::iterators::Pair;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RHexLitteral(Bytes);
+pub struct RHexLitteral(pub Bytes);
 
 impl From<Bytes> for RHexLitteral {
     fn from(value: Bytes) -> Self {
@@ -33,7 +33,7 @@ impl FromPair for RHexLitteral {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct RStringLitteral(String);
+pub struct RStringLitteral(pub String);
 
 impl From<String> for RStringLitteral {
     fn from(value: String) -> Self {

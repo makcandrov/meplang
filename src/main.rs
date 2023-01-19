@@ -34,7 +34,7 @@ fn init_env_logger() {
 fn main() {
     init_env_logger();
 
-    let contract_name = "contr".to_owned();
+    let contract_name = "SwapperRuntime".to_owned();
     let input = std::fs::read_to_string("input.mep").unwrap();
 
     let r_file = match RFile::new(input.clone()) {
