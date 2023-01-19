@@ -2,37 +2,22 @@ use pest::iterators::Pair;
 
 use crate::ast::constant::RConstant;
 use crate::parser::parser::{Rule, FromPair, get_next};
-use crate::ast::attribute::{RAttribute, WithAttributes};
+use crate::ast::attribute::WithAttributes;
 use crate::ast::block::RBlock;
 use crate::parser::parser::Located;
 
-#[derive(Debug, Clone)]
-pub struct VarName(pub String);
-
-impl FromPair for VarName {
-    fn from_pair(var_name: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(var_name.as_rule() == Rule::var_name);
-
-        Ok(VarName(var_name.as_str().to_owned()))
-    }
-}
-
-impl VarName {
-    pub fn name(&self) -> &str {
-        &self.0
-    }
-}
+use super::variable::RVariable;
 
 #[derive(Debug, Clone)]
 pub struct RContract {
-    pub name: Located<VarName>,
+    pub name: Located<RVariable>,
     pub blocks: Vec<Located<WithAttributes<RBlock>>>,
     pub constants: Vec<Located<RConstant>>,
 }
 
 impl RContract {
-    pub fn name(&self) -> &str {
-        &self.name.name()
+    pub fn name_str(&self) -> &str {
+        &self.name.as_str()
     }
 }
 
@@ -44,9 +29,11 @@ impl FromPair for RContract {
 
         _ = get_next(&mut contract_decl_inner, Rule::contract_keyword);
 
-        let name = Located::<VarName>::from_pair(
-            get_next(&mut contract_decl_inner, Rule::var_name)
+        let name = Located::<RVariable>::from_pair(
+            get_next(&mut contract_decl_inner, Rule::variable)
         )?;
+
+        _ = get_next(&mut contract_decl_inner, Rule::open_brace);
 
         let mut blocks = Vec::<Located<WithAttributes<RBlock>>>::new();
         let mut constants = Vec::<Located<RConstant>>::new();
@@ -58,14 +45,18 @@ impl FromPair for RContract {
                 Rule::const_decl => {
                     constants.push(Located::<RConstant>::from_pair(contract_item)?);
                 },
+                Rule::close_brace => {
+                    assert!(contract_decl_inner.next() == None);
+                    return Ok(Self {
+                        name,
+                        blocks,
+                        constants,
+                    })
+                }
                 _ => unreachable!(),
             }
         }
 
-        return Ok(Self {
-            name,
-            blocks,
-            constants,
-        })
+        unreachable!()
     }
 }

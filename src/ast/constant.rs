@@ -1,13 +1,15 @@
-use crate::parser::parser::{get_next, FromPair, Located, Rule};
-use bytes::Bytes;
+use crate::{
+    ast::litteral::RHexLitteral,
+    parser::parser::{get_next, FromPair, Located, Rule},
+};
 use pest::iterators::Pair;
 
-use super::contract::VarName;
+use super::variable::RVariable;
 
 #[derive(Debug, Clone)]
 pub struct RConstant {
-    pub name: Located<VarName>,
-    pub value: Located<Bytes>,
+    pub name: Located<RVariable>,
+    pub value: Located<RHexLitteral>,
 }
 
 impl FromPair for RConstant {
@@ -18,12 +20,15 @@ impl FromPair for RConstant {
 
         let _ = get_next(&mut const_decl_inner, Rule::const_keyword);
 
-        let name = Located::<VarName>::from_pair(get_next(&mut const_decl_inner, Rule::var_name))?;
+        let name =
+            Located::<RVariable>::from_pair(get_next(&mut const_decl_inner, Rule::variable))?;
 
-        let _ = get_next(&mut const_decl_inner, Rule::equal);
+        let _ = get_next(&mut const_decl_inner, Rule::eq);
 
-        let value =
-            Located::<Bytes>::from_pair(get_next(&mut const_decl_inner, Rule::hex_litteral))?;
+        let value = Located::<RHexLitteral>::from_pair(get_next(
+            &mut const_decl_inner,
+            Rule::hex_litteral,
+        ))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::semicolon);
         assert!(const_decl_inner.next() == None);

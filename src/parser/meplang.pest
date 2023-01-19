@@ -20,14 +20,15 @@ hex_or_string_litteral = { string_litteral | hex_litteral }
 
 variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 variable_with_field = ${ variable ~ dot ~ variable }
+variable_or_variable_with_field = { variable_with_field | variable }
 
 const_keyword = @{ "const" ~ &WHITESPACE }
 block_keyword = @{ "block" ~ &WHITESPACE }
 contract_keyword = @{ "contract" ~ &WHITESPACE }
 
-affectation = { variable ~ eq ~ hex_or_string_litteral }
+equality = { variable ~ eq ~ hex_or_string_litteral }
 
-attribute_arg = { affectation | variable | hex_or_string_litteral }
+attribute_arg = { equality | variable | hex_or_string_litteral }
 function_arg = { variable_with_field | hex_litteral | variable }
 
 attribute = {
@@ -44,7 +45,7 @@ function = ${
     close_paren
 }
 
-block_ref = { (star ~ variable)| (esp ~  (variable_with_field | variable )) }
+block_ref = { (star ~ variable) | (esp ~ variable_or_variable_with_field) }
 
 block_item = ${
 	hex_litteral |

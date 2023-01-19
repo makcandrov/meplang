@@ -1,16 +1,83 @@
-use std::str::FromStr;
-
+use crate::parser::parser::FromPair;
+use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
-use crate::parser::parser::{Rule, Located, get_next, map_unique_child};
-use crate::{opcode::OpCode, parser::parser::FromPair};
 
-use super::affectation::{RAffectation, RLitteral};
-use super::contract::VarName;
+use super::litteral::RHexOrStringLitteral;
+use super::variable::RVariable;
 
+#[derive(Debug, Clone)]
+pub struct REquality {
+    pub name: Located<RVariable>,
+    pub value: Located<RHexOrStringLitteral>,
+}
+
+impl FromPair for REquality {
+    fn from_pair(equality: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(equality.as_rule() == Rule::equality);
+
+        let mut inner = equality.into_inner();
+
+        let name = Located::<RVariable>::from_pair(get_next(&mut inner, Rule::variable))?;
+
+        _ = get_next(&mut inner, Rule::eq);
+
+        let value = Located::<RHexOrStringLitteral>::from_pair(get_next(
+            &mut inner,
+            Rule::hex_or_string_litteral,
+        ))?;
+
+        assert!(inner.next() == None);
+
+        Ok(Self { name, value })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RAttributeArg {
+    Variable(RVariable),
+    Litteral(RHexOrStringLitteral),
+    Equality(REquality),
+}
+
+impl From<RVariable> for RAttributeArg {
+    fn from(value: RVariable) -> Self {
+        Self::Variable(value)
+    }
+}
+
+impl From<RHexOrStringLitteral> for RAttributeArg {
+    fn from(value: RHexOrStringLitteral) -> Self {
+        Self::Litteral(value)
+    }
+}
+
+impl From<REquality> for RAttributeArg {
+    fn from(value: REquality) -> Self {
+        Self::Equality(value)
+    }
+}
+
+impl FromPair for RAttributeArg {
+    fn from_pair(attribute_arg: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(attribute_arg.as_rule() == Rule::attribute_arg);
+
+        map_unique_child(
+            attribute_arg,
+            |attribute_arg_inner| match attribute_arg_inner.as_rule() {
+                Rule::equality => Ok(REquality::from_pair(attribute_arg_inner)?.into()),
+                Rule::variable => Ok(RVariable::from_pair(attribute_arg_inner)?.into()),
+                Rule::hex_or_string_litteral => {
+                    Ok(RHexOrStringLitteral::from_pair(attribute_arg_inner)?.into())
+                }
+                _ => unreachable!(),
+            },
+        )
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct RAttribute {
-    pub name: Located<VarName>,
+    pub name: Located<RVariable>,
     pub arg: Option<Located<RAttributeArg>>,
 }
 
@@ -20,41 +87,23 @@ impl FromPair for RAttribute {
 
         let mut attribute_inner = attribute.into_inner();
 
-        let name = Located::<VarName>::from_pair(
-            get_next(&mut attribute_inner, Rule::var_name)
-        )?;
+        let name = Located::<RVariable>::from_pair(get_next(&mut attribute_inner, Rule::variable))?;
 
-        let arg = if let Some(arg) = attribute_inner.next() {
-            let res = Located::<RAttributeArg>::from_pair(arg)?;
+        if let Some(paren) = attribute_inner.next() {
+            assert!(paren.as_rule() == Rule::open_paren);
+
+            let arg = Some(Located::<RAttributeArg>::from_pair(get_next(
+                &mut attribute_inner,
+                Rule::attribute_arg,
+            ))?);
+
+            _ = get_next(&mut attribute_inner, Rule::close_paren);
             assert!(attribute_inner.next() == None);
-            Some(res)
+
+            Ok(Self { name, arg })
         } else {
-            None
-        };
-
-        Ok(Self { name, arg })
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum RAttributeArg {
-    Var(VarName),
-    Litteral(RLitteral),
-    Aff(RAffectation),
-}
-
-impl FromPair for RAttributeArg {
-    fn from_pair(attribute_arg: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(attribute_arg.as_rule() == Rule::attribute_arg);
-
-        map_unique_child(attribute_arg, |attribute_arg_inner| {
-            match attribute_arg_inner.as_rule() {
-                Rule::affectation => Ok(Self::Aff(RAffectation::from_pair(attribute_arg_inner)?)),
-                Rule::var_name => Ok(Self::Var(VarName::from_pair(attribute_arg_inner)?)),
-                Rule::litteral => Ok(Self::Litteral(RLitteral::from_pair(attribute_arg_inner)?)),
-                _ => unreachable!(),
-            }
-        })
+            Ok(Self { name, arg: None })
+        }
     }
 }
 
@@ -73,16 +122,18 @@ impl<T: FromPair> FromPair for WithAttributes<T> {
             match attr_or_item.as_rule() {
                 Rule::attribute => {
                     attributes.push(Located::<RAttribute>::from_pair(attr_or_item)?);
-                },
+                }
                 _ => {
+                    let attr_inner = Located::<T>::from_pair(attr_or_item)?;
+                    assert!(inner.next() == None);
                     return Ok(Self {
                         attributes,
-                        inner: Located::<T>::from_pair(attr_or_item)?,
+                        inner: attr_inner,
                     });
-                },
+                }
             }
         }
-        panic!()
+        unreachable!()
     }
 }
 

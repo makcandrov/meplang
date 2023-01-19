@@ -1,22 +1,21 @@
-use std::ops::Deref;
 use core::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 
 use pest::iterators::{Pair, Pairs};
 use pest_derive::Parser;
-use crate::parser::error::new_error_from_pair;
 
 #[derive(Parser)]
 #[grammar = "./src/parser/meplang.pest"]
 pub struct MeplangParser;
 
-pub trait FromPair where Self: Sized + Debug + Clone{
+pub trait FromPair
+where
+    Self: Sized + Debug + Clone,
+{
     fn from_pair(pair: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>>;
 }
 
-pub fn map_unique_child<T>(
-    pair: Pair<Rule>,
-    f: fn(Pair<Rule>) -> T,
-) -> T {
+pub fn map_unique_child<T>(pair: Pair<Rule>, f: fn(Pair<Rule>) -> T) -> T {
     let mut inner = pair.into_inner();
     let child = inner.next().unwrap();
     let res = f(child);
@@ -38,7 +37,6 @@ pub struct Located<T> {
 }
 
 impl<T: FromPair> FromPair for Located<T> {
-
     fn from_pair(pair: Pair<'_, Rule>) -> Result<Located<T>, pest::error::Error<Rule>> {
         Ok(Self {
             start: pair.as_span().start(),
@@ -56,30 +54,8 @@ impl<T> Deref for Located<T> {
     }
 }
 
-impl FromPair for bytes::Bytes {
-    fn from_pair(hex_litteral: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(hex_litteral.as_rule() == Rule::hex_litteral);
-
-        if hex_litteral.as_str().len() % 2 != 0 {
-            return Err(new_error_from_pair(&hex_litteral, "Hex litterals must be odd size".to_owned()));
-        }
-
-        match hex::decode(hex_litteral.as_str().strip_prefix("0x").unwrap()) {
-            Ok(decoded) => Ok(decoded.into()),
-            Err(err) => Err(new_error_from_pair(&hex_litteral, err.to_string())),
-        }
+impl<T> DerefMut for Located<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
     }
 }
-
-impl FromPair for String {
-    fn from_pair(string_litteral: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(string_litteral.as_rule() == Rule::string_litteral);
-        
-        Ok(map_unique_child(string_litteral, |string_inner| {
-            assert!(string_inner.as_rule() == Rule::string_inner);
-            string_inner.as_str().to_owned()
-        }))
-    }
-}
-
-

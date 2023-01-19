@@ -1,12 +1,12 @@
-use pest::Parser;
-use pest::iterators::Pair;
+use super::contract::RContract;
+use crate::ast::attribute::WithAttributes;
 use crate::parser::error::new_generic_error;
 use crate::parser::parser::FromPair;
+use crate::parser::parser::Located;
 use crate::parser::parser::MeplangParser;
 use crate::parser::parser::Rule;
-use super::contract::RContract;
-use crate::parser::parser::Located;
-use crate::ast::attribute::WithAttributes;
+use pest::iterators::Pair;
+use pest::Parser;
 
 #[derive(Default, Debug, Clone)]
 pub struct RFile(pub Vec<Located<WithAttributes<RContract>>>);
@@ -28,7 +28,7 @@ impl RFile {
 impl FromPair for RFile {
     fn from_pair(file: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(file.as_rule() == Rule::file);
-    
+
         let mut contracts = Vec::<Located<WithAttributes<RContract>>>::new();
         match file.as_rule() {
             Rule::file => {
@@ -37,17 +37,15 @@ impl FromPair for RFile {
                         Rule::EOI => (),
                         Rule::contract_decl_with_attr => {
                             contracts.push(Located::<WithAttributes<RContract>>::from_pair(
-                                contract_decl_with_attr
+                                contract_decl_with_attr,
                             )?);
-                        },
+                        }
                         _ => unreachable!(),
                     }
-                    
                 }
             }
             _ => unreachable!(),
         }
-
         Ok(Self(contracts))
     }
 }
