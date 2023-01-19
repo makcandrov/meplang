@@ -20,7 +20,7 @@ pub enum Attribute {
 
 impl Attribute {
     pub fn is_contract_attribute(&self) -> bool {
-        *self != Self::Main && *self != Self::Last
+        !self.is_main() && !self.is_last()
     }
 
     pub fn is_block_attribute(&self) -> bool {
@@ -34,10 +34,15 @@ impl Attribute {
         }
     }
 
-    pub fn from_r_attribute(
-        input: &str,
-        r_attribute: &Located<RAttribute>,
-    ) -> Result<Self, pest::error::Error<Rule>> {
+    pub fn is_main(&self) -> bool {
+        *self == Self::Main
+    }
+
+    pub fn is_last(&self) -> bool {
+        *self == Self::Last
+    }
+
+    pub fn from_r_attribute(input: &str, r_attribute: &Located<RAttribute>) -> Result<Self, pest::error::Error<Rule>> {
         let name = r_attribute.name_str();
         match name {
             "assume" => {
@@ -89,16 +94,11 @@ impl Attribute {
                         "selfbalance" => 0x47,
                         "msize" => 0x59,
                         _ => {
-                            return Err(new_error_from_located(
-                                input,
-                                &eq.name,
-                                "Cannot assume this opcode",
-                            ));
-                        } 
+                            return Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"));
+                        }
                     },
-                    v: bytes
+                    v: bytes,
                 })
-                
             }
             "enable_optimization" => Ok(Self::Optimization(true)),
             "disable_optimization" => Ok(Self::Optimization(false)),
@@ -128,4 +128,14 @@ impl Default for Attributes {
     }
 }
 
-impl Attributes {}
+impl Attributes {
+    pub fn apply(&mut self, attribute: Attribute) {
+        match attribute {
+            Attribute::Assume { op, v } => {
+                self.assumes.insert(op, v);
+            }
+            Attribute::Optimization(enabled) => self.optimization = enabled,
+            _ => (),
+        }
+    }
+}
