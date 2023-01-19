@@ -6,7 +6,6 @@ use crate::pre_processing::pre_processing::pre_process;
 
 mod ast;
 mod compile;
-mod opcode;
 mod parser;
 mod pre_processing;
 
