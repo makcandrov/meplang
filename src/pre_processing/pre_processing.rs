@@ -260,7 +260,6 @@ pub fn pre_process_block(
     contract_names: &HashMap<String, usize>,
 ) -> Result<Block, pest::error::Error<Rule>> {
     let r_block = r_block_with_attr.inner();
-    // todo!()
     // let mut items = Vec::<BlockItem>::new();
     // let mut current_bytes: Option<BytesMut> = None;
     // for line in &r_block.items {
