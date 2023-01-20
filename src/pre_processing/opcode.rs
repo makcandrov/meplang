@@ -2,6 +2,52 @@ pub type OpCode = u8;
 
 // pub const PUSH_GAS: usize = 3;
 
+// 0x30 range - closure state.
+pub const ADDRESS: OpCode = 0x30;
+pub const BALANCE: OpCode = 0x31;
+pub const ORIGIN: OpCode = 0x32;
+pub const CALLER: OpCode = 0x33;
+pub const CALLVALUE: OpCode = 0x34;
+pub const CALLDATALOAD: OpCode = 0x35;
+pub const CALLDATASIZE: OpCode = 0x36;
+pub const CALLDATACOPY: OpCode = 0x37;
+pub const CODESIZE: OpCode = 0x38;
+pub const CODECOPY: OpCode = 0x39;
+pub const GASPRICE: OpCode = 0x3a;
+pub const EXTCODESIZE: OpCode = 0x3b;
+pub const EXTCODECOPY: OpCode = 0x3c;
+pub const RETURNDATASIZE: OpCode = 0x3d;
+pub const RETURNDATACOPY: OpCode = 0x3e;
+pub const EXTCODEHASH: OpCode = 0x3f;
+
+// 0x40 range - block operations.
+pub const BLOCKHASH: OpCode = 0x40;
+pub const COINBASE: OpCode = 0x41;
+pub const TIMESTAMP: OpCode = 0x42;
+pub const NUMBER: OpCode = 0x43;
+pub const DIFFICULTY: OpCode = 0x44;
+pub const RANDOM: OpCode = 0x44;
+pub const PREVRANDAO: OpCode = 0x44;
+pub const GASLIMIT: OpCode = 0x45;
+pub const CHAINID: OpCode = 0x46;
+pub const SELFBALANCE: OpCode = 0x47;
+pub const BASEFEE: OpCode = 0x48;
+
+// 0x50 range - 'storage' and execution.
+pub const POP: OpCode = 0x50;
+pub const MLOAD: OpCode = 0x51;
+pub const MSTORE: OpCode = 0x52;
+pub const MSTORE8: OpCode = 0x53;
+pub const SLOAD: OpCode = 0x54;
+pub const SSTORE: OpCode = 0x55;
+pub const JUMP: OpCode = 0x56;
+pub const JUMPI: OpCode = 0x57;
+pub const PC: OpCode = 0x58;
+pub const MSIZE: OpCode = 0x59;
+pub const GAS: OpCode = 0x5a;
+pub const JUMPDEST: OpCode = 0x5b;
+// pub const PUSH0: OpCode = 0x5f;
+
 pub fn str_to_op(name: &str) -> Option<OpCode> {
     Some(match name.to_lowercase().as_str() {
         // 0x0 range - arithmetic ops.
@@ -38,49 +84,49 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "keccak256" => 0x20,
 
         // 0x30 range - closure state.
-        "address" => 0x30,
-        "balance" => 0x31,
-        "origin" => 0x32,
-        "caller" => 0x33,
-        "callvalue" => 0x34,
-        "calldataload" => 0x35,
-        "calldatasize" => 0x36,
-        "calldatacopy" => 0x37,
-        "codesize" => 0x38,
-        "codecopy" => 0x39,
-        "gasprice" => 0x3a,
-        "extcodesize" => 0x3b,
-        "extcodecopy" => 0x3c,
-        "returndatasize" => 0x3d,
-        "returndatacopy" => 0x3e,
-        "extcodehash" => 0x3f,
+        "address" => ADDRESS,
+        "balance" => BALANCE,
+        "origin" => ORIGIN,
+        "caller" => CALLER,
+        "callvalue" => CALLVALUE,
+        "calldataload" => CALLDATALOAD,
+        "calldatasize" => CALLDATASIZE,
+        "calldatacopy" => CALLDATACOPY,
+        "codesize" => CODESIZE,
+        "codecopy" => CODECOPY,
+        "gasprice" => GASPRICE,
+        "extcodesize" => EXTCODESIZE,
+        "extcodecopy" => EXTCODECOPY,
+        "returndatasize" => RETURNDATASIZE,
+        "returndatacopy" => RETURNDATACOPY,
+        "extcodehash" => EXTCODEHASH,
 
         // 0x40 range - block operations.
-        "blockhash" => 0x40,
-        "coinbase" => 0x41,
-        "timestamp" => 0x42,
-        "number" => 0x43,
-        "difficulty" => 0x44,
-        "random" => 0x44,
-        "prevrandao" => 0x44,
-        "gaslimit" => 0x45,
-        "chainid" => 0x46,
-        "selfbalance" => 0x47,
-        "basefee" => 0x48,
+        "blockhash" => BLOCKHASH,
+        "coinbase" => COINBASE,
+        "timestamp" => TIMESTAMP,
+        "number" => NUMBER,
+        "difficulty" => DIFFICULTY,
+        "random" => RANDOM,
+        "prevrandao" => PREVRANDAO,
+        "gaslimit" => GASLIMIT,
+        "chainid" => CHAINID,
+        "selfbalance" => SELFBALANCE,
+        "basefee" => BASEFEE,
 
         // 0x50 range - 'storage' and execution.
-        "pop" => 0x50,
-        "mload" => 0x51,
-        "mstore" => 0x52,
-        "mstore8" => 0x53,
-        "sload" => 0x54,
-        "sstore" => 0x55,
-        "jump" => 0x56,
-        "jumpi" => 0x57,
-        "pc" => 0x58,
-        "msize" => 0x59,
-        "gas" => 0x5a,
-        "jumpdest" => 0x5b,
+        "pop" => POP,
+        "mload" => MLOAD,
+        "mstore" => MSTORE,
+        "mstore8" => MSTORE8,
+        "sload" => SLOAD,
+        "sstore" => SSTORE,
+        "jump" => JUMP,
+        "jumpi" => JUMPI,
+        "pc" => PC,
+        "msize" => MSIZE,
+        "gas" => GAS,
+        "jumpdest" => JUMPDEST,
         // "push0" => 0x57, // invalid
 
         // 0x60 range - pushes. // all pushes instructions are invalid

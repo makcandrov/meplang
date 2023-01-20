@@ -5,9 +5,21 @@ use std::collections::HashMap;
 
 use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLitteral};
 
+use super::opcode::*;
+
+const fn is_assumable_opcode(op: OpCode) -> bool {
+    match op {
+        ADDRESS | BALANCE | ORIGIN | CALLER | CALLVALUE | CALLDATASIZE | GASPRICE | RETURNDATASIZE |
+        BLOCKHASH | COINBASE | TIMESTAMP | NUMBER | DIFFICULTY /* | RANDOM | PREVRANDAO */ | GASLIMIT | CHAINID | 
+        SELFBALANCE | BASEFEE | MSIZE => true,
+        _ => false,
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Attribute {
     Assume { op: u8, v: Bytes },
+    Keep,
     Main,
     Last,
     Optimization(bool),
@@ -15,7 +27,7 @@ pub enum Attribute {
 
 impl Attribute {
     pub fn is_contract_attribute(&self) -> bool {
-        !self.is_main() && !self.is_last()
+        !self.is_main() && !self.is_last() && !self.is_keep()
     }
 
     pub fn is_block_attribute(&self) -> bool {
@@ -35,6 +47,10 @@ impl Attribute {
 
     pub fn is_last(&self) -> bool {
         *self == Self::Last
+    }
+
+    pub fn is_keep(&self) -> bool {
+        *self == Self::Keep
     }
 
     pub fn from_r_attribute(input: &str, r_attribute: &Located<RAttribute>) -> Result<Self, pest::error::Error<Rule>> {
@@ -74,29 +90,23 @@ impl Attribute {
                     ));
                 }
 
-                let op_name = eq.name_str().to_lowercase();
-                Ok(Self::Assume {
-                    op: match op_name.as_str() {
-                        "address" => 0x20,
-                        "balance" => 0x31,
-                        "origin" => 0x32,
-                        "caller" => 0x33,
-                        "callvalue" => 0x34,
-                        "calldatasize" => 0x36,
-                        "gasprice" => 0x3a,
-                        "returndatasize" => 0x3a,
-                        "chainid" => 0x46,
-                        "selfbalance" => 0x47,
-                        "msize" => 0x59,
-                        _ => {
-                            return Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"));
-                        }
-                    },
-                    v: bytes,
-                })
+                let Some(op) = str_to_op(&eq.name_str().to_lowercase()) else {
+                    return Err(new_error_from_located(
+                        input,
+                        &eq.name,
+                        &format!("Unknown opcode `{}`", &eq.name_str()),
+                    ));
+                };
+
+                if is_assumable_opcode(op) {
+                    Ok(Self::Assume { op, v: bytes }) 
+                } else {
+                    Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"))
+                }
             }
             "enable_optimization" => Ok(Self::Optimization(true)),
             "disable_optimization" => Ok(Self::Optimization(false)),
+            "keep" => Ok(Self::Keep),
             "main" => Ok(Self::Main),
             "last" => Ok(Self::Last),
             _ => Err(new_error_from_located(

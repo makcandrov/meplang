@@ -78,7 +78,6 @@ pub fn pre_process(
             main_index.replace(contract_index);
         }
     }
-    dbg!(&contract_attributes);
 
     let Some(main_index) = main_index else {
         return Err(new_generic_error(
@@ -93,6 +92,7 @@ pub fn pre_process(
     let mut contracts_dependency_tree = DependencyTree::<usize>::new();
 
     while let Some(index_to_process) = contracts_queue.pop() {
+        log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
         let contract = pre_process_contract(
             input,
             &r_file.0[index_to_process],
@@ -137,6 +137,11 @@ pub fn pre_process_contract(
     let mut last_index: Option<usize> = None;
     let mut block_names = HashMap::<String, usize>::new();
 
+    let mut blocks_dependency_tree = DependencyTree::<usize>::new();
+    let mut block_types = vec![BlockType::Unused; r_contract.blocks.len()];
+
+    let mut blocks_queue = DedupQueue::<usize>::new();
+
     for block_index in 0..r_contract.blocks.len() {
         let r_block_with_attr = &r_contract.blocks[block_index];
         for r_attribute in &r_block_with_attr.attributes {
@@ -151,9 +156,13 @@ pub fn pre_process_contract(
                         ));
                     }
                 }
+
+                if attribute.is_keep() {
+                    blocks_queue.insert_if_needed(block_index);
+                }
                 block_attributes[block_index].apply(attribute);
             } else {
-                return Err(new_error_from_located(input, r_attribute, "Invalid block attribute"));
+                return Err(new_error_from_located(input, r_attribute, "Invalid block attribute."));
             }
         }
 
@@ -171,13 +180,14 @@ pub fn pre_process_contract(
             ));
         }
         if name == "main" {
-            main_index = Some(block_names.len() - 1);
+            main_index = Some(block_index);
+            block_types[block_index] = BlockType::Star;
+            blocks_queue.insert_if_needed(block_index);
         }
     }
 
     let block_names = block_names;
 
-    dbg!(&block_attributes);
     let Some(main_index) = main_index else {
         return Err(new_error_from_located(
             input,
@@ -188,17 +198,9 @@ pub fn pre_process_contract(
 
     let mut blocks = HashMap::<usize, Block>::new();
     let mut contract_dependencies = HashSet::<usize>::new();
-    let mut blocks_dependency_tree = DependencyTree::<usize>::new();
-    let mut block_types = vec![BlockType::Unused; r_contract.blocks.len()];
-    block_types[main_index] = BlockType::Star;
-    if let Some(last_index) = last_index {
-        block_types[last_index] = BlockType::Star;
-    }
-
-    let mut blocks_queue = DedupQueue::<usize>::new();
-    blocks_queue.insert_if_needed(main_index);
 
     while let Some(index_to_process) = blocks_queue.pop() {
+        log::info!("Pre-processing block {}", &r_contract.blocks[index_to_process].inner().name_str());
         let block = pre_process_block(
             input,
             &r_contract.blocks[index_to_process],
@@ -238,6 +240,8 @@ pub fn pre_process_contract(
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockType {
     Unused,
+    Keep,
+    Main,
     Star,
     Esp,
 }
@@ -313,20 +317,34 @@ pub fn pre_process_block(
 
                 match block_types[*block_index] {
                     BlockType::Unused => block_types[*block_index] = BlockType::Star,
+                    BlockType::Keep => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `*` operator on a block marked with `keep`."),
+                        ));
+                    },
+                    BlockType::Main => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `*` operator on the main block."),
+                        ));
+                    },
                     BlockType::Star => {
                         return Err(new_error_from_located(
                             input,
                             item,
                             &format!("Cannot use the `*` operator two times on the same block."),
                         ));
-                    }
+                    },
                     BlockType::Esp => {
                         return Err(new_error_from_located(
                             input,
                             item,
                             &format!("Cannot use the `*` operator if the `&` operator has already been used."),
                         ));
-                    }
+                    },
                 }
 
                 items.push(BlockItem::Block(*block_index));
@@ -344,13 +362,27 @@ pub fn pre_process_block(
 
                 match block_types[*block_index] {
                     BlockType::Unused => block_types[*block_index] = BlockType::Esp,
+                    BlockType::Keep => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `&` operator on a block marked with `keep`."),
+                        ));
+                    },
+                    BlockType::Main => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `&` operator on the main block."),
+                        ));
+                    },
                     BlockType::Star => {
                         return Err(new_error_from_located(
                             input,
                             item,
                             &format!("Cannot use the `&` operator if the `*` operator has already been used."),
                         ));
-                    }
+                    },
                     BlockType::Esp => (),
                 }
 
