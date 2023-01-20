@@ -1,11 +1,11 @@
 use std::collections::{HashMap, HashSet};
 
-use bytes::{Bytes, BytesMut};
+use bytes::{Bytes, BytesMut, BufMut};
 
 use crate::ast::attribute::WithAttributes;
 use crate::ast::block::{RBlock, RBlockItem, RBlockRef};
 use crate::ast::constant::RConstant;
-use crate::ast::contract::{RContract, self};
+use crate::ast::contract::RContract;
 use crate::ast::function::RFunctionArg;
 use crate::ast::variable::RVariableOrVariableWithField;
 use crate::parser::error::{new_error_from_located, new_generic_error};
@@ -15,6 +15,7 @@ use crate::pre_processing::dependencies::DependencyTree;
 use crate::{ast::file::RFile, parser::parser::Located};
 
 use super::attribute::Attribute;
+use super::opcode::str_to_op;
 use super::queue::DedupQueue;
 
 #[derive(Clone, Default, Debug)]
@@ -191,6 +192,9 @@ pub fn pre_process_contract(
     let mut blocks_dependency_tree = DependencyTree::<usize>::new();
     let mut block_types = vec![BlockType::Unused; r_contract.blocks.len()];
     block_types[main_index] = BlockType::Star;
+    if let Some(last_index) = last_index {
+        block_types[last_index] = BlockType::Star;
+    }
 
     let mut blocks_queue = DedupQueue::<usize>::new();
     blocks_queue.insert_if_needed(main_index);
@@ -377,7 +381,17 @@ pub fn pre_process_block(
 
                 contract_dependencies.insert(*contract_index);
             },
-            RBlockItem::Variable(_) => (),
+            RBlockItem::Variable(variable) => {
+                if let Some(op) = str_to_op(variable.as_str()) {
+                    push_or_create_bytes(&mut current_bytes, op);
+                } else {
+                    return Err(new_error_from_located(
+                        input,
+                        &item,
+                        &format!("Contract `{}` not found.", variable.as_str()),
+                    ));
+                }
+            },
             RBlockItem::Function(function) => {
                 let function_name = function.name.as_str();
                 
@@ -398,7 +412,7 @@ pub fn pre_process_block(
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
-                                &format!("Constant `{}` not found.", variable.as_str()),
+                                &format!("Invalid opcode `{}`.", variable.as_str()),
                             ));
                         };
 
@@ -464,5 +478,15 @@ fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Byte
         c_bytes.extend_from_slice(new_bytes);
     } else {
         current_bytes.replace(new_bytes[..].into());
+    }
+}
+
+fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) {
+    if let Some(c_bytes) = current_bytes.as_mut() {
+        c_bytes.put_u8(new_byte);
+    } else {
+        let mut c_bytes = BytesMut::new();
+        c_bytes.put_u8(new_byte);
+        current_bytes.replace(c_bytes);
     }
 }
