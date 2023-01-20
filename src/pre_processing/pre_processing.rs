@@ -329,6 +329,7 @@ pub fn pre_process_block(
                     }
                 }
 
+                items.push(BlockItem::Block(*block_index));
                 block_dependencies.insert(*block_index);
             }
             RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(variable))) => {
@@ -353,6 +354,7 @@ pub fn pre_process_block(
                     BlockType::Esp => (),
                 }
 
+                items.push(BlockItem::Block(*block_index));
                 block_dependencies.insert(*block_index);
             }
             RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(
@@ -377,6 +379,7 @@ pub fn pre_process_block(
                     ));
                 };
 
+                items.push(BlockItem::Contract(*contract_index));
                 contract_dependencies.insert(*contract_index);
             }
             RBlockItem::Variable(variable) => {
