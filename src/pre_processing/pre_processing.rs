@@ -1,15 +1,17 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 
 use bytes::{Bytes, BytesMut};
 
 use crate::ast::attribute::WithAttributes;
-use crate::ast::block::RBlock;
+use crate::ast::block::{RBlock, RBlockItem, RBlockRef};
 use crate::ast::constant::RConstant;
-use crate::ast::contract::RContract;
+use crate::ast::contract::{RContract, self};
+use crate::ast::function::RFunctionArg;
+use crate::ast::variable::RVariableOrVariableWithField;
 use crate::parser::error::{new_error_from_located, new_generic_error};
 use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
+use crate::pre_processing::dependencies::DependencyTree;
 use crate::{ast::file::RFile, parser::parser::Located};
 
 use super::attribute::Attribute;
@@ -26,18 +28,11 @@ pub struct Contract {
 #[derive(Clone, Default, Debug)]
 pub struct Block {
     pub items: Vec<BlockItem>,
-    pub star_dependencies: HashSet<usize>,
-    pub esp_dependencies: HashSet<usize>,
+    pub dependencies: HashSet<usize>,
 }
 
 #[derive(Clone, Debug)]
-pub struct BlockItem {
-    pub assumes: HashMap<Bytes, u8>,
-    pub content: BlockItemContent,
-}
-
-#[derive(Clone, Debug)]
-pub enum BlockItemContent {
+pub enum BlockItem {
     Bytes(Bytes),
     Contract(usize),
     Block(usize),
@@ -95,6 +90,8 @@ pub fn pre_process(input: &str, r_file: RFile, contract_name: String) -> Result<
     let mut contracts_queue = DedupQueue::<usize>::new();
     contracts_queue.insert_if_needed(main_index);
 
+    let mut contracts_dependency_tree = DependencyTree::<usize>::new();
+
     while let Some(index_to_process) = contracts_queue.pop() {
         let contract = pre_process_contract(
             input,
@@ -105,6 +102,7 @@ pub fn pre_process(input: &str, r_file: RFile, contract_name: String) -> Result<
 
         for dependency in &contract.dependencies {
             contracts_queue.insert_if_needed(*dependency);
+            contracts_dependency_tree.insert_if_needed(&index_to_process, dependency);
         }
 
         contracts.insert(index_to_process, contract);
@@ -177,6 +175,8 @@ pub fn pre_process_contract(
         }
     }
 
+    let block_names = block_names;
+
     dbg!(&block_attributes);
     let Some(main_index) = main_index else {
         return Err(new_error_from_located(
@@ -187,7 +187,10 @@ pub fn pre_process_contract(
     };
 
     let mut blocks = HashMap::<usize, Block>::new();
-    let mut dependencies = HashSet::<usize>::new();
+    let mut contract_dependencies = HashSet::<usize>::new();
+    let mut blocks_dependency_tree = DependencyTree::<usize>::new();
+    let mut block_types = vec![BlockType::Unused; r_contract.blocks.len()];
+    block_types[main_index] = BlockType::Star;
 
     let mut blocks_queue = DedupQueue::<usize>::new();
     blocks_queue.insert_if_needed(main_index);
@@ -197,11 +200,19 @@ pub fn pre_process_contract(
             input,
             &r_contract.blocks[index_to_process],
             &constants,
-            &mut dependencies,
+            &mut contract_dependencies,
             contract_names,
+            &block_names,
+            &mut block_types
         )?;
 
+        for dependency in &block.dependencies {
+            blocks_queue.insert_if_needed(*dependency);
+            blocks_dependency_tree.insert_if_needed(&index_to_process, dependency);
+        }
+
         blocks.insert(index_to_process, block);
+
     }
 
     // for index in 0..r_contract.blocks.len() {
@@ -216,10 +227,17 @@ pub fn pre_process_contract(
 
     Ok(Contract {
         blocks: blocks.into_iter().map(|(_, c)| c).collect(),
-        dependencies,
+        dependencies: contract_dependencies,
         main: main_index,
         last: last_index,
     })
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum BlockType {
+    Unused,
+    Star,
+    Esp,
 }
 
 pub fn extract_constants(
@@ -253,47 +271,198 @@ pub fn extract_constants(
 }
 
 pub fn pre_process_block(
-    code: &str,
+    input: &str,
     r_block_with_attr: &Located<WithAttributes<RBlock>>,
     constants: &HashMap<String, Bytes>,
     contract_dependencies: &mut HashSet<usize>,
     contract_names: &HashMap<String, usize>,
+    block_names: &HashMap<String, usize>,
+    block_types: &mut Vec<BlockType>,
 ) -> Result<Block, pest::error::Error<Rule>> {
     let r_block = r_block_with_attr.inner();
-    // let mut items = Vec::<BlockItem>::new();
-    // let mut current_bytes: Option<BytesMut> = None;
-    // for line in &r_block.items {
-    //     match &line.inner {
-    //         RBlockLine::Var(var) => {
-    //             let name = var.name();
-    //             if let Some(bytes) = constants.get(name) {
-    //                 if let Some(c_bytes) = current_bytes.as_mut() {
-    //                     c_bytes.extend_from_slice(bytes);
-    //                 } else {
-    //                     current_bytes = Some(bytes[..].into());
-    //                 }
-    //             } else {
-    //                 if let Some(bytes) = current_bytes.take() {
-    //                     items.push(BlockItem {
-    //                         assumes: HashMap::new(),
-    //                         content: BlockItemContent::Bytes(bytes.into()),
-    //                     })
-    //                 }
-    //                 if let Some(contract_old_index) = contract_names.get(name) {
-    //                     contract_remapping_queue.insert_if_needed(*contract_old_index);
-    //                     let contract_new_index = contract_remapping_queue.remapping(contract_old_index).unwrap();
-    //                     items.push(BlockItem {
-    //                         assumes: HashMap::new(),
-    //                         content: BlockItemContent::Contract(contract_new_index),
-    //                     })
-    //                 }
-    //             }
-    //         },
-    //         RBlockLine::Function(_) => (),
-    //         RBlockLine::Bytes(_) => (),
-    //     }
-    // }
 
-    // Ok(Block { items: items.into_iter().map(|(_, c)| c).collect() })
-    Ok(Block::default())
+    let mut items = Vec::<BlockItem>::new();
+    let mut block_dependencies = HashSet::<usize>::new();
+
+    let mut current_bytes: Option<BytesMut> = None;
+
+    for item_with_attr in &r_block.items {
+        let item = item_with_attr.inner_located();
+
+        if let RBlockItem::HexLitteral(hex_litteral) = &item.inner {
+            append_or_create_bytes(&mut current_bytes, &hex_litteral.0);
+            continue;
+        }
+
+        if let Some(c_bytes) = current_bytes.take() {
+            items.push(BlockItem::Bytes(c_bytes.into()));
+        }
+        match &item.inner {
+            RBlockItem::HexLitteral(_) => unreachable!(),
+            RBlockItem::BlockRef(RBlockRef::Star(variable)) => {
+                let block_name = variable.as_str();
+                let Some(block_index) = block_names.get(variable.as_str()) else {
+                    return Err(new_error_from_located(
+                        input,
+                        item,
+                        &format!("Block `{}` not found in this contract.", block_name)
+                    ));
+                };
+
+                match block_types[*block_index] {
+                    BlockType::Unused => block_types[*block_index] = BlockType::Star,
+                    BlockType::Star => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `*` operator two times on the same block.")
+                        ));
+                    },
+                    BlockType::Esp => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `*` operator if the `&` operator has already been used.")
+                        ));
+                    },
+                }
+
+                block_dependencies.insert(*block_index);
+            },
+            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(variable))) => {
+                let block_name = variable.as_str();
+                let Some(block_index) = block_names.get(variable.as_str()) else {
+                    return Err(new_error_from_located(
+                        input,
+                        item,
+                        &format!("Block `{}` not found in this contract.", block_name)
+                    ));
+                };
+
+                match block_types[*block_index] {
+                    BlockType::Unused => block_types[*block_index] = BlockType::Esp,
+                    BlockType::Star => {
+                        return Err(new_error_from_located(
+                            input,
+                            item,
+                            &format!("Cannot use the `&` operator if the `*` operator has already been used.")
+                        ));
+                    },
+                    BlockType::Esp => (),
+                }
+
+                block_dependencies.insert(*block_index);
+            },
+            RBlockItem::BlockRef(
+                RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(variable_with_field))
+            ) => {
+                let field_name = variable_with_field.field.as_str();
+                if field_name != "code" {
+                    return Err(new_error_from_located(
+                        input,
+                        &variable_with_field.field,
+                        &format!("Unknown field {}.", field_name),
+                    ));
+                }
+
+                let variable_name = variable_with_field.variable.as_str();
+
+                let Some(contract_index) = contract_names.get(variable_name) else {
+                    return Err(new_error_from_located(
+                        input,
+                        &variable_with_field.variable,
+                        &format!("Contract `{}` not found.", variable_name),
+                    ));
+                };
+
+                contract_dependencies.insert(*contract_index);
+            },
+            RBlockItem::Variable(_) => (),
+            RBlockItem::Function(function) => {
+                let function_name = function.name.as_str();
+                
+                if function_name.to_lowercase().as_str() != "push" {
+                    return Err(new_error_from_located(
+                        input,
+                        &function.name,
+                        &format!("Unknown function `{}`.", function_name),
+                    ));
+                }
+
+                let push = match &function.arg.inner {
+                    RFunctionArg::HexLitteral(hex_litteral) => {
+                        Push::Constant(hex_litteral.0.clone())
+                    },
+                    RFunctionArg::Variable(variable) => {
+                        let Some(constant_value) = constants.get(variable.as_str()) else {
+                            return Err(new_error_from_located(
+                                input,
+                                &function.arg,
+                                &format!("Constant `{}` not found.", variable.as_str()),
+                            ));
+                        };
+
+                        Push::Constant(constant_value.clone())
+                    },
+                    RFunctionArg::VariableWithField(variable_with_field) => {
+                        let field_name = variable_with_field.field.as_str();
+                        let variable_name = variable_with_field.variable.as_str();
+                        match field_name {
+                            "pc" => {
+                                if let Some(contract_index) = contract_names.get(variable_name) {
+                                    contract_dependencies.insert(*contract_index);
+                                    Push::ContractPc(*contract_index)
+                                } else if let Some(block_index) = block_names.get(variable_name) {
+                                    block_dependencies.insert(*block_index);
+                                    Push::BlockPc(*block_index)
+                                } else {
+                                    return Err(new_error_from_located(
+                                        input,
+                                        &variable_with_field.variable,
+                                        &format!("Contract or block `{}` not found.", variable_name),
+                                    ));
+                                }
+                            },
+                            "size" => {
+                                if let Some(contract_index) = contract_names.get(variable_name) {
+                                    contract_dependencies.insert(*contract_index);
+                                    Push::ContractSize(*contract_index)
+                                } else if let Some(block_index) = block_names.get(variable_name) {
+                                    block_dependencies.insert(*block_index);
+                                    Push::BlockSize(*block_index)
+                                } else {
+                                    return Err(new_error_from_located(
+                                        input,
+                                        &variable_with_field.variable,
+                                        &format!("Contract or block `{}` not found.", variable_name),
+                                    ));
+                                }
+                            },
+                            _ => return Err(new_error_from_located(
+                                input,
+                                &variable_with_field.field,
+                                &format!("Unknown field `{}`.", field_name),
+                            )),
+                        }
+                    },
+                };
+
+                items.push(BlockItem::Push(push));
+            },
+        }
+    }
+
+    if let Some(c_bytes) = current_bytes.take() {
+        items.push(BlockItem::Bytes(c_bytes.into()));
+    }
+
+    Ok(Block { items, dependencies: block_dependencies })
+}
+
+fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Bytes) {
+    if let Some(c_bytes) = current_bytes.as_mut() {
+        c_bytes.extend_from_slice(new_bytes);
+    } else {
+        current_bytes.replace(new_bytes[..].into());
+    }
 }

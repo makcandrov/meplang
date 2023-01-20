@@ -5,13 +5,13 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Dependencies<T: Debug + Clone> {
+pub struct DependencyTree<T: Debug + Clone> {
     parents: HashMap<T, HashSet<T>>,
     children: HashMap<T, HashSet<T>>,
     leaves: HashSet<T>,
 }
 
-impl<T: Debug + Clone> Default for Dependencies<T> {
+impl<T: Debug + Clone> Default for DependencyTree<T> {
     fn default() -> Self {
         Self {
             parents: HashMap::new(),
@@ -21,7 +21,7 @@ impl<T: Debug + Clone> Default for Dependencies<T> {
     }
 }
 
-impl<T: Debug + Clone + Eq + Hash> Dependencies<T> {
+impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
     pub fn new() -> Self {
         Self::default()
     }
