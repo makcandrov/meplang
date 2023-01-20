@@ -1,14 +1,9 @@
-use crate::{
-    ast::{attribute::RAttributeArg, litteral::RHexOrStringLitteral},
-    parser::{
-        error::new_error_from_located,
-        parser::{Located, Rule},
-    },
-};
+use crate::parser::error::new_error_from_located;
+use crate::parser::parser::{Located, Rule};
 use bytes::Bytes;
 use std::collections::HashMap;
 
-use crate::ast::attribute::RAttribute;
+use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLitteral};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Attribute {

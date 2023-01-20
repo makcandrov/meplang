@@ -27,10 +27,7 @@ impl FromPair for REquality {
 
         _ = get_next(&mut inner, Rule::eq);
 
-        let value = Located::<RHexOrStringLitteral>::from_pair(get_next(
-            &mut inner,
-            Rule::hex_or_string_litteral,
-        ))?;
+        let value = Located::<RHexOrStringLitteral>::from_pair(get_next(&mut inner, Rule::hex_or_string_litteral))?;
 
         assert!(inner.next() == None);
 
@@ -67,17 +64,14 @@ impl FromPair for RAttributeArg {
     fn from_pair(attribute_arg: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(attribute_arg.as_rule() == Rule::attribute_arg);
 
-        map_unique_child(
-            attribute_arg,
-            |attribute_arg_inner| match attribute_arg_inner.as_rule() {
+        map_unique_child(attribute_arg, |attribute_arg_inner| {
+            match attribute_arg_inner.as_rule() {
                 Rule::equality => Ok(REquality::from_pair(attribute_arg_inner)?.into()),
                 Rule::variable => Ok(RVariable::from_pair(attribute_arg_inner)?.into()),
-                Rule::hex_or_string_litteral => {
-                    Ok(RHexOrStringLitteral::from_pair(attribute_arg_inner)?.into())
-                }
+                Rule::hex_or_string_litteral => Ok(RHexOrStringLitteral::from_pair(attribute_arg_inner)?.into()),
                 _ => unreachable!(),
-            },
-        )
+            }
+        })
     }
 }
 

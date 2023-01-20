@@ -84,7 +84,7 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         // "push0" => 0x57, // invalid
 
         // 0x60 range - pushes. // all pushes instructions are invalid
-        
+
         // 0x80 range - dups.
         "dup1" => 0x80,
         "dup2" => 0x81,
@@ -142,7 +142,7 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
 
         "staticcall" => 0xfa,
         "revert" => 0xfd,
-    
+
         "selfdestruct" => 0xff,
 
         _ => return None,

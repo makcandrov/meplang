@@ -1,8 +1,17 @@
-pub mod attribute;
-pub mod block;
-pub mod constant;
-pub mod contract;
-pub mod file;
-pub mod function;
-pub mod litteral;
-pub mod variable;
+mod attribute;
+mod block;
+mod constant;
+mod contract;
+mod file;
+mod function;
+mod litteral;
+mod variable;
+
+pub use attribute::*;
+pub use block::*;
+pub use constant::*;
+pub use contract::*;
+pub use file::*;
+pub use function::*;
+pub use litteral::*;
+pub use variable::*;

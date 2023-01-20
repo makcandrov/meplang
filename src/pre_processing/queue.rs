@@ -1,5 +1,5 @@
-use std::collections::HashSet;
 use core::hash::Hash;
+use std::collections::HashSet;
 
 #[derive(Default, Clone, Debug)]
 pub struct DedupQueue<T> {
@@ -7,11 +7,11 @@ pub struct DedupQueue<T> {
     seen: HashSet<T>,
 }
 
-impl<T: Default> DedupQueue<T>  {
+impl<T: Default> DedupQueue<T> {
     pub fn new() -> Self {
         Self::default()
     }
-} 
+}
 
 impl<T: Eq + Hash + Clone> DedupQueue<T> {
     pub fn insert_if_needed(&mut self, item: T) -> bool {

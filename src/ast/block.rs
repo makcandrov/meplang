@@ -90,9 +90,7 @@ impl RBlock {
 }
 
 impl FromPair for RBlock {
-    fn from_pair(
-        block_decl: pest::iterators::Pair<Rule>,
-    ) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_decl: pest::iterators::Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(block_decl.as_rule() == Rule::block_decl);
 
         let mut block_decl_inner = block_decl.into_inner();
@@ -107,13 +105,11 @@ impl FromPair for RBlock {
         while let Some(block_item_with_attr) = block_decl_inner.next() {
             match block_item_with_attr.as_rule() {
                 Rule::block_item_with_attr => {
-                    items.push(Located::<WithAttributes<RBlockItem>>::from_pair(
-                        block_item_with_attr,
-                    )?);
-                },
+                    items.push(Located::<WithAttributes<RBlockItem>>::from_pair(block_item_with_attr)?);
+                }
                 Rule::close_brace => {
                     assert!(block_decl_inner.next() == None);
-                    return Ok(RBlock { name, items })
+                    return Ok(RBlock { name, items });
                 }
                 _ => unreachable!(),
             }

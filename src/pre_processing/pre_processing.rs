@@ -1,18 +1,13 @@
 use std::collections::{HashMap, HashSet};
 
-use bytes::{Bytes, BytesMut, BufMut};
+use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::ast::attribute::WithAttributes;
-use crate::ast::block::{RBlock, RBlockItem, RBlockRef};
-use crate::ast::constant::RConstant;
-use crate::ast::contract::RContract;
-use crate::ast::function::RFunctionArg;
-use crate::ast::variable::RVariableOrVariableWithField;
+use crate::ast::*;
 use crate::parser::error::{new_error_from_located, new_generic_error};
+use crate::parser::parser::Located;
 use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
 use crate::pre_processing::dependencies::DependencyTree;
-use crate::{ast::file::RFile, parser::parser::Located};
 
 use super::attribute::Attribute;
 use super::opcode::str_to_op;
@@ -49,7 +44,11 @@ pub enum Push {
     BlockPc(usize),
 }
 
-pub fn pre_process(input: &str, r_file: RFile, contract_name: String) -> Result<Vec<Contract>, pest::error::Error<Rule>> {
+pub fn pre_process(
+    input: &str,
+    r_file: RFile,
+    contract_name: String,
+) -> Result<Vec<Contract>, pest::error::Error<Rule>> {
     let mut main_index: Option<usize> = None;
     let mut contract_names = HashMap::<String, usize>::new();
     let mut contract_attributes = vec![Attributes::default(); r_file.0.len()];
@@ -207,7 +206,7 @@ pub fn pre_process_contract(
             &mut contract_dependencies,
             contract_names,
             &block_names,
-            &mut block_types
+            &mut block_types,
         )?;
 
         for dependency in &block.dependencies {
@@ -216,7 +215,6 @@ pub fn pre_process_contract(
         }
 
         blocks.insert(index_to_process, block);
-
     }
 
     // for index in 0..r_contract.blocks.len() {
@@ -319,20 +317,20 @@ pub fn pre_process_block(
                         return Err(new_error_from_located(
                             input,
                             item,
-                            &format!("Cannot use the `*` operator two times on the same block.")
+                            &format!("Cannot use the `*` operator two times on the same block."),
                         ));
-                    },
+                    }
                     BlockType::Esp => {
                         return Err(new_error_from_located(
                             input,
                             item,
-                            &format!("Cannot use the `*` operator if the `&` operator has already been used.")
+                            &format!("Cannot use the `*` operator if the `&` operator has already been used."),
                         ));
-                    },
+                    }
                 }
 
                 block_dependencies.insert(*block_index);
-            },
+            }
             RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(variable))) => {
                 let block_name = variable.as_str();
                 let Some(block_index) = block_names.get(variable.as_str()) else {
@@ -349,17 +347,17 @@ pub fn pre_process_block(
                         return Err(new_error_from_located(
                             input,
                             item,
-                            &format!("Cannot use the `&` operator if the `*` operator has already been used.")
+                            &format!("Cannot use the `&` operator if the `*` operator has already been used."),
                         ));
-                    },
+                    }
                     BlockType::Esp => (),
                 }
 
                 block_dependencies.insert(*block_index);
-            },
-            RBlockItem::BlockRef(
-                RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(variable_with_field))
-            ) => {
+            }
+            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(
+                variable_with_field,
+            ))) => {
                 let field_name = variable_with_field.field.as_str();
                 if field_name != "code" {
                     return Err(new_error_from_located(
@@ -380,7 +378,7 @@ pub fn pre_process_block(
                 };
 
                 contract_dependencies.insert(*contract_index);
-            },
+            }
             RBlockItem::Variable(variable) => {
                 if let Some(op) = str_to_op(variable.as_str()) {
                     push_or_create_bytes(&mut current_bytes, op);
@@ -391,10 +389,10 @@ pub fn pre_process_block(
                         &format!("Contract `{}` not found.", variable.as_str()),
                     ));
                 }
-            },
+            }
             RBlockItem::Function(function) => {
                 let function_name = function.name.as_str();
-                
+
                 if function_name.to_lowercase().as_str() != "push" {
                     return Err(new_error_from_located(
                         input,
@@ -404,9 +402,7 @@ pub fn pre_process_block(
                 }
 
                 let push = match &function.arg.inner {
-                    RFunctionArg::HexLitteral(hex_litteral) => {
-                        Push::Constant(hex_litteral.0.clone())
-                    },
+                    RFunctionArg::HexLitteral(hex_litteral) => Push::Constant(hex_litteral.0.clone()),
                     RFunctionArg::Variable(variable) => {
                         let Some(constant_value) = constants.get(variable.as_str()) else {
                             return Err(new_error_from_located(
@@ -417,7 +413,7 @@ pub fn pre_process_block(
                         };
 
                         Push::Constant(constant_value.clone())
-                    },
+                    }
                     RFunctionArg::VariableWithField(variable_with_field) => {
                         let field_name = variable_with_field.field.as_str();
                         let variable_name = variable_with_field.variable.as_str();
@@ -436,7 +432,7 @@ pub fn pre_process_block(
                                         &format!("Contract or block `{}` not found.", variable_name),
                                     ));
                                 }
-                            },
+                            }
                             "size" => {
                                 if let Some(contract_index) = contract_names.get(variable_name) {
                                     contract_dependencies.insert(*contract_index);
@@ -451,18 +447,20 @@ pub fn pre_process_block(
                                         &format!("Contract or block `{}` not found.", variable_name),
                                     ));
                                 }
-                            },
-                            _ => return Err(new_error_from_located(
-                                input,
-                                &variable_with_field.field,
-                                &format!("Unknown field `{}`.", field_name),
-                            )),
+                            }
+                            _ => {
+                                return Err(new_error_from_located(
+                                    input,
+                                    &variable_with_field.field,
+                                    &format!("Unknown field `{}`.", field_name),
+                                ))
+                            }
                         }
-                    },
+                    }
                 };
 
                 items.push(BlockItem::Push(push));
-            },
+            }
         }
     }
 
@@ -470,7 +468,10 @@ pub fn pre_process_block(
         items.push(BlockItem::Bytes(c_bytes.into()));
     }
 
-    Ok(Block { items, dependencies: block_dependencies })
+    Ok(Block {
+        items,
+        dependencies: block_dependencies,
+    })
 }
 
 fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Bytes) {

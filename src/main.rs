@@ -1,8 +1,8 @@
-use ast::file::RFile;
+use crate::pre_processing::pre_processing::pre_process;
+use ast::RFile;
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
 use std::io::Write;
-use crate::pre_processing::pre_processing::pre_process;
 
 mod ast;
 mod compile;
@@ -11,7 +11,7 @@ mod pre_processing;
 
 fn init_env_logger() {
     env_logger::builder()
-    .filter_level(LevelFilter::Info)
+        .filter_level(LevelFilter::Info)
         .format(|buf, record| {
             let mut style = buf.style();
             style
@@ -42,17 +42,17 @@ fn main() {
         Err(err) => {
             log::error!("Parsing failed:\n{}", err);
             return;
-        },
+        }
     };
 
     // dbg!(&meplang_file);
-    
+
     let pre_processed = match pre_process(&input, r_file, contract_name) {
         Ok(pre_processed) => pre_processed,
         Err(err) => {
             log::error!("Pre-processing failed:\n{}", err);
             return;
-        },
+        }
     };
 
     dbg!(&pre_processed);
