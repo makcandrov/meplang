@@ -38,8 +38,6 @@ pub enum BlockItem {
 #[derive(Clone, Debug)]
 pub enum Push {
     Constant(Bytes),
-    ContractPc(usize),
-    ContractSize(usize),
     BlockSize(usize),
     BlockPc(usize),
 }
@@ -460,35 +458,29 @@ pub fn pre_process_block(
                         let variable_name = variable_with_field.variable.as_str();
                         match field_name {
                             "pc" => {
-                                if let Some(contract_index) = contract_names.get(variable_name) {
-                                    contract_dependencies.insert(*contract_index);
-                                    Push::ContractPc(*contract_index)
-                                } else if let Some(block_index) = block_names.get(variable_name) {
+                                if let Some(block_index) = block_names.get(variable_name) {
                                     block_dependencies.insert(*block_index);
                                     Push::BlockPc(*block_index)
                                 } else {
                                     return Err(new_error_from_located(
                                         input,
                                         &variable_with_field.variable,
-                                        &format!("Contract or block `{}` not found.", variable_name),
+                                        &format!("Block `{}` not found.", variable_name),
                                     ));
                                 }
-                            }
+                            },
                             "size" => {
-                                if let Some(contract_index) = contract_names.get(variable_name) {
-                                    contract_dependencies.insert(*contract_index);
-                                    Push::ContractSize(*contract_index)
-                                } else if let Some(block_index) = block_names.get(variable_name) {
+                                if let Some(block_index) = block_names.get(variable_name) {
                                     block_dependencies.insert(*block_index);
                                     Push::BlockSize(*block_index)
                                 } else {
                                     return Err(new_error_from_located(
                                         input,
                                         &variable_with_field.variable,
-                                        &format!("Contract or block `{}` not found.", variable_name),
+                                        &format!("Block `{}` not found.", variable_name),
                                     ));
                                 }
-                            }
+                            },
                             _ => {
                                 return Err(new_error_from_located(
                                     input,
