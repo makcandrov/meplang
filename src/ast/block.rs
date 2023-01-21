@@ -80,6 +80,7 @@ impl FromPair for RBlockItem {
 #[derive(Debug, Clone)]
 pub struct RBlock {
     pub name: Located<RVariable>,
+    pub abstr: bool,
     pub items: Vec<Located<WithAttributes<Located<RBlockItem>>>>,
 }
 
@@ -90,12 +91,19 @@ impl RBlock {
 }
 
 impl FromPair for RBlock {
-    fn from_pair(block_decl: pest::iterators::Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_decl: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(block_decl.as_rule() == Rule::block_decl);
 
         let mut block_decl_inner = block_decl.into_inner();
 
-        _ = get_next(&mut block_decl_inner, Rule::block_keyword);
+        let abstr = match block_decl_inner.next().unwrap().as_rule() {
+            Rule::block_keyword => false,
+            Rule::abstract_keyword => {
+                _ = get_next(&mut block_decl_inner, Rule::block_keyword);
+                true
+            },
+            _ => unreachable!(),
+        };
 
         let name = Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
 
@@ -106,14 +114,14 @@ impl FromPair for RBlock {
             match block_item_with_attr.as_rule() {
                 Rule::block_item_with_attr => {
                     items.push(Located::<WithAttributes<Located<RBlockItem>>>::from_pair(block_item_with_attr)?);
-                }
+                },
                 Rule::close_brace => {
                     assert!(block_decl_inner.next() == None);
-                    return Ok(RBlock { name, items });
-                }
+                    return Ok(RBlock { name, abstr, items });
+                },
                 _ => unreachable!(),
             }
         }
-        unreachable!()
+        unreachable!();
     }
 }

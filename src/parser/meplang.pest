@@ -25,6 +25,7 @@ variable_or_variable_with_field = { variable_with_field | variable }
 const_keyword = @{ "const" ~ &WHITESPACE }
 block_keyword = @{ "block" ~ &WHITESPACE }
 contract_keyword = @{ "contract" ~ &WHITESPACE }
+abstract_keyword = @{ "abstract" ~ &WHITESPACE }
 
 equality = { variable ~ eq ~ hex_or_string_litteral }
 
@@ -57,7 +58,7 @@ block_item = ${
 block_item_with_attr = { attribute* ~ block_item }
 
 block_decl = {
-	block_keyword ~ variable ~ open_brace ~
+	abstract_keyword? ~ block_keyword ~ variable ~ open_brace ~
     	block_item_with_attr*
      ~ close_brace
 }
