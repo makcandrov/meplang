@@ -11,7 +11,7 @@ use super::variable::RVariable;
 #[derive(Debug, Clone)]
 pub struct RContract {
     pub name: Located<RVariable>,
-    pub blocks: Vec<Located<WithAttributes<RBlock>>>,
+    pub blocks: Vec<Located<WithAttributes<Located<RBlock>>>>,
     pub constants: Vec<Located<RConstant>>,
 }
 
@@ -36,12 +36,12 @@ impl FromPair for RContract {
 
         _ = get_next(&mut contract_decl_inner, Rule::open_brace);
 
-        let mut blocks = Vec::<Located<WithAttributes<RBlock>>>::new();
+        let mut blocks = Vec::<Located<WithAttributes<Located<RBlock>>>>::new();
         let mut constants = Vec::<Located<RConstant>>::new();
         while let Some(contract_item) = contract_decl_inner.next() {
             match contract_item.as_rule() {
                 Rule::block_decl_with_attr => {
-                    blocks.push(Located::<WithAttributes<RBlock>>::from_pair(contract_item)?);
+                    blocks.push(Located::<WithAttributes<Located<RBlock>>>::from_pair(contract_item)?);
                 }
                 Rule::const_decl => {
                     constants.push(Located::<RConstant>::from_pair(contract_item)?);

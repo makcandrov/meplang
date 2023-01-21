@@ -55,5 +55,5 @@ fn main() {
         }
     };
 
-    // dbg!(&pre_processed);
+    dbg!(&pre_processed);
 }

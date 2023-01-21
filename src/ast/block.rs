@@ -80,7 +80,7 @@ impl FromPair for RBlockItem {
 #[derive(Debug, Clone)]
 pub struct RBlock {
     pub name: Located<RVariable>,
-    pub items: Vec<Located<WithAttributes<RBlockItem>>>,
+    pub items: Vec<Located<WithAttributes<Located<RBlockItem>>>>,
 }
 
 impl RBlock {
@@ -101,11 +101,11 @@ impl FromPair for RBlock {
 
         _ = get_next(&mut block_decl_inner, Rule::open_brace);
 
-        let mut items = Vec::<Located<WithAttributes<RBlockItem>>>::new();
+        let mut items = Vec::<Located<WithAttributes<Located<RBlockItem>>>>::new();
         while let Some(block_item_with_attr) = block_decl_inner.next() {
             match block_item_with_attr.as_rule() {
                 Rule::block_item_with_attr => {
-                    items.push(Located::<WithAttributes<RBlockItem>>::from_pair(block_item_with_attr)?);
+                    items.push(Located::<WithAttributes<Located<RBlockItem>>>::from_pair(block_item_with_attr)?);
                 }
                 Rule::close_brace => {
                     assert!(block_decl_inner.next() == None);

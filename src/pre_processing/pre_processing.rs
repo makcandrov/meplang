@@ -23,7 +23,7 @@ pub struct Contract {
 
 #[derive(Clone, Default, Debug)]
 pub struct Block {
-    pub items: Vec<BlockItem>,
+    pub items: Vec<WithAttributes<BlockItem>>,
     pub dependencies: HashSet<usize>,
 }
 
@@ -123,7 +123,7 @@ pub fn pre_process(
 
 pub fn pre_process_contract(
     input: &str,
-    r_contract_with_attr: &Located<WithAttributes<RContract>>,
+    r_contract_with_attr: &Located<WithAttributes<Located<RContract>>>,
     default_attributes: &Attributes,
     contract_names: &HashMap<String, usize>,
 ) -> Result<Contract, pest::error::Error<Rule>> {
@@ -166,8 +166,7 @@ pub fn pre_process_contract(
             }
         }
 
-        let r_block = r_block_with_attr.inner_located();
-        let name = r_block.inner.name_str();
+        let name = r_block_with_attr.inner().inner.name_str();
 
         if contract_names.contains_key(name)
             || constants.contains_key(name)
@@ -278,7 +277,7 @@ pub fn extract_constants(
 
 pub fn pre_process_block(
     input: &str,
-    r_block_with_attr: &Located<WithAttributes<RBlock>>,
+    r_block_with_attr: &Located<WithAttributes<Located<RBlock>>>,
     constants: &HashMap<String, Bytes>,
     contract_dependencies: &mut HashSet<usize>,
     contract_names: &HashMap<String, usize>,
@@ -287,13 +286,18 @@ pub fn pre_process_block(
 ) -> Result<Block, pest::error::Error<Rule>> {
     let r_block = r_block_with_attr.inner();
 
-    let mut items = Vec::<BlockItem>::new();
+    let mut items = Vec::<WithAttributes::<BlockItem>>::new();
     let mut block_dependencies = HashSet::<usize>::new();
 
+    let mut current_attributes = Vec::<Located<RAttribute>>::new();
     let mut current_bytes: Option<BytesMut> = None;
 
     for item_with_attr in &r_block.items {
-        let item = item_with_attr.inner_located();
+        for attr in &item_with_attr.attributes {
+            current_attributes.push(attr.clone());
+        }
+
+        let item = item_with_attr.inner();
 
         if let RBlockItem::HexLitteral(hex_litteral) = &item.inner {
             append_or_create_bytes(&mut current_bytes, &hex_litteral.0);
@@ -301,7 +305,7 @@ pub fn pre_process_block(
         }
 
         if let Some(c_bytes) = current_bytes.take() {
-            items.push(BlockItem::Bytes(c_bytes.into()));
+            items.push(WithAttributes::new_without_attribute(BlockItem::Bytes(c_bytes.into())));
         }
         match &item.inner {
             RBlockItem::HexLitteral(_) => unreachable!(),
@@ -347,7 +351,8 @@ pub fn pre_process_block(
                     },
                 }
 
-                items.push(BlockItem::Block(*block_index));
+                items.push(WithAttributes::new(BlockItem::Block(*block_index), current_attributes));
+                current_attributes = Vec::new();
                 block_dependencies.insert(*block_index);
             }
             RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(variable))) => {
@@ -386,7 +391,8 @@ pub fn pre_process_block(
                     BlockType::Esp => (),
                 }
 
-                items.push(BlockItem::Block(*block_index));
+                items.push(WithAttributes::new(BlockItem::Block(*block_index), current_attributes));
+                current_attributes = Vec::new();
                 block_dependencies.insert(*block_index);
             }
             RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(
@@ -411,7 +417,7 @@ pub fn pre_process_block(
                     ));
                 };
 
-                items.push(BlockItem::Contract(*contract_index));
+                items.push(WithAttributes::new_without_attribute(BlockItem::Contract(*contract_index)));
                 contract_dependencies.insert(*contract_index);
             }
             RBlockItem::Variable(variable) => {
@@ -494,13 +500,18 @@ pub fn pre_process_block(
                     }
                 };
 
-                items.push(BlockItem::Push(push));
+                items.push(WithAttributes::new(BlockItem::Push(push), current_attributes));
+                current_attributes = Vec::new();
             }
         }
     }
 
     if let Some(c_bytes) = current_bytes.take() {
-        items.push(BlockItem::Bytes(c_bytes.into()));
+        items.push(WithAttributes::new(BlockItem::Bytes(c_bytes.into()), current_attributes));
+        current_attributes = Vec::new();
+    }
+    if current_attributes.len() > 0 {
+        items.push(WithAttributes::new(BlockItem::Bytes(Bytes::new()), current_attributes));
     }
 
     Ok(Block {

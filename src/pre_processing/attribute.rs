@@ -19,6 +19,7 @@ const fn is_assumable_opcode(op: OpCode) -> bool {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Attribute {
     Assume { op: u8, v: Bytes },
+    ClearAssume { op: u8 },
     Keep,
     Main,
     Last,
@@ -103,7 +104,38 @@ impl Attribute {
                 } else {
                     Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"))
                 }
-            }
+            },
+            "clear_assume" => {
+                let Some(arg) = &r_attribute.arg else {
+                    return Err(new_error_from_located(
+                        input,
+                        &r_attribute,
+                        "Argument required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
+                    ))
+                };
+
+                let RAttributeArg::Variable(var) = &arg.inner else {
+                    return Err(new_error_from_located(
+                        input,
+                        &r_attribute,
+                        "Opcode name required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
+                    ))
+                };
+    
+                let Some(op) = str_to_op(&var.as_str().to_lowercase()) else {
+                    return Err(new_error_from_located(
+                        input,
+                        &arg,
+                        &format!("Unknown opcode `{}`", var.as_str()),
+                    ));
+                };
+
+                if is_assumable_opcode(op) {
+                    Ok(Self::ClearAssume { op })
+                } else {
+                    Err(new_error_from_located(input, arg, "Cannot assume this opcode"))
+                }
+            },
             "enable_optimization" => Ok(Self::Optimization(true)),
             "disable_optimization" => Ok(Self::Optimization(false)),
             "keep" => Ok(Self::Keep),

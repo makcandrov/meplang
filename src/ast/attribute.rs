@@ -116,7 +116,7 @@ impl FromPair for RAttribute {
 #[derive(Debug, Clone)]
 pub struct WithAttributes<T> {
     pub attributes: Vec<Located<RAttribute>>,
-    pub inner: Located<T>,
+    pub inner: T,
 }
 
 impl<T: FromPair> FromPair for WithAttributes<T> {
@@ -130,7 +130,7 @@ impl<T: FromPair> FromPair for WithAttributes<T> {
                     attributes.push(Located::<RAttribute>::from_pair(attr_or_item)?);
                 }
                 _ => {
-                    let attr_inner = Located::<T>::from_pair(attr_or_item)?;
+                    let attr_inner = T::from_pair(attr_or_item)?;
                     assert!(inner.next() == None);
                     return Ok(Self {
                         attributes,
@@ -144,11 +144,19 @@ impl<T: FromPair> FromPair for WithAttributes<T> {
 }
 
 impl<T> WithAttributes<T> {
-    pub fn inner_located(&self) -> &Located<T> {
+
+    pub fn inner(&self) -> &T {
         &self.inner
     }
 
-    pub fn inner(&self) -> &T {
-        &self.inner_located().inner
+    pub fn new(item: T, attr: Vec<Located<RAttribute>>) -> Self {
+        Self { inner: item, attributes: attr }
+    }
+
+    pub fn new_without_attribute(item: T) -> Self {
+        Self {
+            attributes: Vec::new(),
+            inner: item,
+        }
     }
 }
