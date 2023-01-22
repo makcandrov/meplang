@@ -35,9 +35,14 @@ impl Attribute {
         true
     }
 
+    pub fn is_abstract_block_attribute(&self) -> bool {
+        !self.is_main() && !self.is_last() && !self.is_keep()
+    }
+
     pub fn is_block_item_attribute(&self) -> bool {
         match self {
             Self::Assume { op: _, v: _ } => true,
+            Self::ClearAssume { op: _ } => true,
             _ => false,
         }
     }
@@ -173,6 +178,12 @@ impl Attributes {
             }
             Attribute::Optimization(enabled) => self.optimization = enabled,
             _ => (),
+        }
+    }
+
+    pub fn apply_many(&mut self, attributes: Vec<Attribute>) {
+        for attribute in attributes {
+            self.apply(attribute);
         }
     }
 }

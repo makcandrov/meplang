@@ -1,6 +1,7 @@
 pub mod attribute;
 pub mod pre_processing;
-pub mod queue;
 
+mod block_flow;
 mod dependencies;
 mod opcode;
+mod queue;

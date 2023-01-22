@@ -1,16 +1,16 @@
 use std::collections::{HashMap, HashSet};
 
-use bytes::{BufMut, Bytes, BytesMut};
+use bytes::Bytes;
 
 use crate::ast::*;
-use crate::parser::error::{new_error_from_located, new_generic_error};
+use crate::parser::error::{new_error_from_located, new_generic_error, new_error_from_location};
 use crate::parser::parser::Located;
 use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
 use crate::pre_processing::dependencies::DependencyTree;
 
 use super::attribute::Attribute;
-use super::opcode::str_to_op;
+use super::block_flow::{BlockFlow, analyze_block_flow, BlockFlowItem, BlockFlowPush, BlockFlowPushInner, BlockFlowBlockRef};
 use super::queue::DedupQueue;
 
 #[derive(Clone, Default, Debug)]
@@ -23,23 +23,27 @@ pub struct Contract {
 
 #[derive(Clone, Default, Debug)]
 pub struct Block {
-    pub items: Vec<WithAttributes<BlockItem>>,
-    pub dependencies: HashSet<usize>,
+    pub items: Vec<BlockItem>,
 }
 
 #[derive(Clone, Debug)]
 pub enum BlockItem {
     Bytes(Bytes),
     Contract(usize),
-    Block(usize),
     Push(Push),
 }
 
 #[derive(Clone, Debug)]
-pub enum Push {
+pub struct Push {
+    attributes: Attributes,
+    inner: PushInner,
+}
+
+#[derive(Clone, Debug)]
+pub enum PushInner {
     Constant(Bytes),
-    BlockSize(usize),
-    BlockPc(usize),
+    BlockSize { index: usize, start: usize, end: usize},
+    BlockPc { index: usize, line: usize },
 }
 
 pub fn pre_process(
@@ -129,14 +133,11 @@ pub fn pre_process_contract(
 
     let constants = extract_constants(input, &r_contract.constants, contract_names)?;
 
-    let mut block_attributes = vec![default_attributes.clone(); r_contract.blocks.len()];
+    let mut block_attributes = vec![Vec::<Attribute>::new(); r_contract.blocks.len()];
 
     let mut main_index: Option<usize> = None;
     let mut last_index: Option<usize> = None;
     let mut block_names = HashMap::<String, usize>::new();
-
-    let mut blocks_dependency_tree = DependencyTree::<usize>::new();
-    let mut block_types = vec![BlockType::Unused; r_contract.blocks.len()];
 
     let mut blocks_queue = DedupQueue::<usize>::new();
 
@@ -144,45 +145,56 @@ pub fn pre_process_contract(
         let r_block_with_attr = &r_contract.blocks[block_index];
         for r_attribute in &r_block_with_attr.attributes {
             let attribute = Attribute::from_r_attribute(input, r_attribute)?;
-            if attribute.is_block_attribute() {
-                if attribute.is_last() {
-                    if last_index.replace(block_index).is_some() {
-                        return Err(new_error_from_located(
-                            input,
-                            r_attribute,
-                            "This contract has already a block marked with the attribute `last`.",
-                        ));
+            if !r_block_with_attr.inner().abstr {
+                if attribute.is_block_attribute() {
+                    if attribute.is_last() {
+                        if last_index.replace(block_index).is_some() {
+                            return Err(new_error_from_located(
+                                input,
+                                r_attribute,
+                                "This contract has already a block marked with the attribute `last`.",
+                            ));
+                        }
+                    } else if attribute.is_keep() {
+                        blocks_queue.insert_if_needed(block_index);
+                    } else if attribute.is_main() {
+                        if main_index.replace(block_index).is_some() {
+                            return Err(new_error_from_located(input, r_attribute, "A block is already marked as main."));
+                        }
+                    } else {
+                        block_attributes[block_index].push(attribute);
                     }
+                } else {
+                    return Err(new_error_from_located(input, r_attribute, "Invalid block attribute."));
                 }
-
-                if attribute.is_keep() {
-                    blocks_queue.insert_if_needed(block_index);
-                }
-                block_attributes[block_index].apply(attribute);
             } else {
-                return Err(new_error_from_located(input, r_attribute, "Invalid block attribute."));
+                if attribute.is_abstract_block_attribute() {
+                    block_attributes[block_index].push(attribute);
+                } else {
+                    return Err(new_error_from_located(input, r_attribute, "Invalid abstract block attribute."));
+                }
             }
         }
+        
+        let r_block = &r_block_with_attr.inner().inner;
+        let block_name = r_block.name_str();
 
-        let name = r_block_with_attr.inner().inner.name_str();
-
-        if contract_names.contains_key(name)
-            || constants.contains_key(name)
-            || block_names.insert(name.to_owned(), block_names.len()).is_some()
+        if contract_names.contains_key(block_name)
+            || constants.contains_key(block_name)
+            || block_names.insert(block_name.to_owned(), block_names.len()).is_some()
         {
             return Err(new_error_from_located(
                 input,
                 &r_contract.name,
-                &format!("Name `{}` already used", name),
+                &format!("Name `{}` already used", block_name),
             ));
         }
-        if name == "main" {
-            main_index = Some(block_index);
-            block_types[block_index] = BlockType::Star;
-            blocks_queue.insert_if_needed(block_index);
+        if block_name == "main" && main_index.replace(block_index).is_some(){
+            return Err(new_error_from_located(input, &r_block.name, "A block is already marked as main."));
         }
     }
 
+    let block_attributes = block_attributes;
     let block_names = block_names;
 
     let Some(main_index) = main_index else {
@@ -192,39 +204,60 @@ pub fn pre_process_contract(
             &format!("Block `main` not found in contract `{}`", r_contract.name_str())
         ));
     };
+    blocks_queue.insert_if_needed(main_index);
 
-    let mut blocks = HashMap::<usize, Block>::new();
+    let mut blocks_flow = HashMap::<usize, BlockFlow>::new();
     let mut contract_dependencies = HashSet::<usize>::new();
+    let mut block_dependency_tree = DependencyTree::<usize>::new();
 
     while let Some(index_to_process) = blocks_queue.pop() {
-        log::info!("Pre-processing block {}", &r_contract.blocks[index_to_process].inner().name_str());
-        let block = pre_process_block(
+        let block = analyze_block_flow(
             input,
             &r_contract.blocks[index_to_process],
             &constants,
-            &mut contract_dependencies,
-            contract_names,
+            &contract_names,
             &block_names,
-            &mut block_types,
+            &mut contract_dependencies,
         )?;
 
         for dependency in &block.dependencies {
+            block_dependency_tree.insert_if_needed(dependency, &index_to_process);
             blocks_queue.insert_if_needed(*dependency);
-            blocks_dependency_tree.insert_if_needed(&index_to_process, dependency);
         }
+
+        blocks_flow.insert(index_to_process, block);
+    }
+    let blocks_flow = blocks_flow;
+
+    // TODO: unused warnings
+
+    let mut blocks_queue = Vec::<usize>::new();
+    while let Some(index) = block_dependency_tree.pop_leaf() {
+        blocks_queue.push(index);
+    }
+
+    if !block_dependency_tree.is_empty() {
+        return Err(new_generic_error("Recursive blocks unhandled".to_owned()));
+    }
+
+    let mut blocks = HashMap::<usize, Block>::new();
+    let mut unique_dereferences = HashSet::<usize>::new();
+
+    while let Some(index_to_process) = blocks_queue.pop() {
+        let block = pre_process_block(
+            input,
+            index_to_process,
+            &r_contract.blocks,
+            &blocks_flow,
+            BlockPreProcessingContext::new_root(index_to_process),
+            &mut [index_to_process].into(),
+            &mut default_attributes.clone(),
+            &block_attributes,
+            &mut unique_dereferences,
+        )?;
 
         blocks.insert(index_to_process, block);
     }
-
-    // for index in 0..r_contract.blocks.len() {
-    //     if blocks_queue.remapping(&index).is_none() {
-    //         log::warn!("{}", new_error_from_located(
-    //             code,
-    //             r_contract.blocks[index].inner_located(),
-    //             &format!("Unused contract `{}`", r_contract.blocks[index].inner().name_str())
-    //         ));
-    //     }
-    // }
 
     Ok(Contract {
         blocks: blocks.into_iter().map(|(_, c)| c).collect(),
@@ -232,15 +265,6 @@ pub fn pre_process_contract(
         main: main_index,
         last: last_index,
     })
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BlockType {
-    Unused,
-    Keep,
-    Main,
-    Star,
-    Esp,
 }
 
 pub fn extract_constants(
@@ -273,259 +297,135 @@ pub fn extract_constants(
     Ok(constants)
 }
 
-pub fn pre_process_block(
+#[derive(Clone, Debug)]
+struct BlockPreProcessingContext {
+    pub root_index: usize,
+    pub inside_abstract: bool,
+    pub line_index: usize,
+}
+
+impl BlockPreProcessingContext{
+    pub fn new_root(index: usize) -> Self {
+        Self {
+            root_index: index,
+            inside_abstract: false,
+            line_index: 0,
+        }
+    }
+
+    pub fn next_context(&self, inside_abstract: bool, line_index: usize) -> Self {
+        Self {
+            root_index: self.root_index,
+            inside_abstract,
+            line_index,
+        }
+    }
+}
+
+fn pre_process_block(
     input: &str,
-    r_block_with_attr: &Located<WithAttributes<Located<RBlock>>>,
-    constants: &HashMap<String, Bytes>,
-    contract_dependencies: &mut HashSet<usize>,
-    contract_names: &HashMap<String, usize>,
-    block_names: &HashMap<String, usize>,
-    block_types: &mut Vec<BlockType>,
+    index_to_process: usize,
+    r_blocks: &Vec<Located<WithAttributes<Located<RBlock>>>>,
+    blocks_flow: &HashMap<usize, BlockFlow>,
+    context: BlockPreProcessingContext,
+    parents: &mut HashSet<usize>,
+    current_attributes: &mut Attributes,
+    block_attributes: &Vec<Vec<Attribute>>,
+    unique_dereferences: &mut HashSet<usize>,
 ) -> Result<Block, pest::error::Error<Rule>> {
-    let r_block = r_block_with_attr.inner();
+    log::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
 
-    let mut items = Vec::<WithAttributes::<BlockItem>>::new();
-    let mut block_dependencies = HashSet::<usize>::new();
+    current_attributes.apply_many(block_attributes[index_to_process].clone());
 
-    let mut current_attributes = Vec::<Located<RAttribute>>::new();
-    let mut current_bytes: Option<BytesMut> = None;
+    let mut items = Vec::<BlockItem>::new();
 
-    for item_with_attr in &r_block.items {
-        for attr in &item_with_attr.attributes {
-            current_attributes.push(attr.clone());
-        }
-
-        let item = item_with_attr.inner();
-
-        if let RBlockItem::HexLitteral(hex_litteral) = &item.inner {
-            append_or_create_bytes(&mut current_bytes, &hex_litteral.0);
-            continue;
-        }
-
-        if let Some(c_bytes) = current_bytes.take() {
-            items.push(WithAttributes::new_without_attribute(BlockItem::Bytes(c_bytes.into())));
-        }
-        match &item.inner {
-            RBlockItem::HexLitteral(_) => unreachable!(),
-            RBlockItem::BlockRef(RBlockRef::Star(variable)) => {
-                let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(variable.as_str()) else {
-                    return Err(new_error_from_located(
-                        input,
-                        item,
-                        &format!("Block `{}` not found in this contract.", block_name)
-                    ));
-                };
-
-                match block_types[*block_index] {
-                    BlockType::Unused => block_types[*block_index] = BlockType::Star,
-                    BlockType::Keep => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `*` operator on a block marked with `keep`."),
-                        ));
-                    },
-                    BlockType::Main => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `*` operator on the main block."),
-                        ));
-                    },
-                    BlockType::Star => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `*` operator two times on the same block."),
-                        ));
-                    },
-                    BlockType::Esp => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `*` operator if the `&` operator has already been used."),
-                        ));
-                    },
-                }
-
-                items.push(WithAttributes::new(BlockItem::Block(*block_index), current_attributes));
-                current_attributes = Vec::new();
-                block_dependencies.insert(*block_index);
-            }
-            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(variable))) => {
-                let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(variable.as_str()) else {
-                    return Err(new_error_from_located(
-                        input,
-                        item,
-                        &format!("Block `{}` not found in this contract.", block_name)
-                    ));
-                };
-
-                match block_types[*block_index] {
-                    BlockType::Unused => block_types[*block_index] = BlockType::Esp,
-                    BlockType::Keep => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `&` operator on a block marked with `keep`."),
-                        ));
-                    },
-                    BlockType::Main => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `&` operator on the main block."),
-                        ));
-                    },
-                    BlockType::Star => {
-                        return Err(new_error_from_located(
-                            input,
-                            item,
-                            &format!("Cannot use the `&` operator if the `*` operator has already been used."),
-                        ));
-                    },
-                    BlockType::Esp => (),
-                }
-
-                items.push(WithAttributes::new(BlockItem::Block(*block_index), current_attributes));
-                current_attributes = Vec::new();
-                block_dependencies.insert(*block_index);
-            }
-            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(
-                variable_with_field,
-            ))) => {
-                let field_name = variable_with_field.field.as_str();
-                if field_name != "code" {
-                    return Err(new_error_from_located(
-                        input,
-                        &variable_with_field.field,
-                        &format!("Unknown field {}.", field_name),
-                    ));
-                }
-
-                let variable_name = variable_with_field.variable.as_str();
-
-                let Some(contract_index) = contract_names.get(variable_name) else {
-                    return Err(new_error_from_located(
-                        input,
-                        &variable_with_field.variable,
-                        &format!("Contract `{}` not found.", variable_name),
-                    ));
-                };
-
-                items.push(WithAttributes::new_without_attribute(BlockItem::Contract(*contract_index)));
-                contract_dependencies.insert(*contract_index);
-            }
-            RBlockItem::Variable(variable) => {
-                if let Some(op) = str_to_op(variable.as_str()) {
-                    push_or_create_bytes(&mut current_bytes, op);
-                } else {
-                    return Err(new_error_from_located(
-                        input,
-                        &item,
-                        &format!("Contract `{}` not found.", variable.as_str()),
-                    ));
-                }
-            }
-            RBlockItem::Function(function) => {
-                let function_name = function.name.as_str();
-
-                if function_name.to_lowercase().as_str() != "push" {
-                    return Err(new_error_from_located(
-                        input,
-                        &function.name,
-                        &format!("Unknown function `{}`.", function_name),
-                    ));
-                }
-
-                let push = match &function.arg.inner {
-                    RFunctionArg::HexLitteral(hex_litteral) => Push::Constant(hex_litteral.0.clone()),
-                    RFunctionArg::Variable(variable) => {
-                        let Some(constant_value) = constants.get(variable.as_str()) else {
-                            return Err(new_error_from_located(
-                                input,
-                                &function.arg,
-                                &format!("Invalid opcode `{}`.", variable.as_str()),
-                            ));
-                        };
-
-                        Push::Constant(constant_value.clone())
+    for block_flow in &blocks_flow.get(&index_to_process).unwrap().items {
+        match block_flow {
+            BlockFlowItem::Bytes(bytes) => items.push(BlockItem::Bytes(bytes.clone())),
+            BlockFlowItem::Contract(contract_index) => items.push(BlockItem::Contract(*contract_index)),
+            BlockFlowItem::Push(BlockFlowPush { attributes, inner }) => {
+                current_attributes.apply_many(attributes.clone());
+                items.push(BlockItem::Push(Push {
+                    attributes: current_attributes.clone(),
+                    inner: match inner {
+                        BlockFlowPushInner::Constant(bytes) => PushInner::Constant(bytes.clone()),
+                        BlockFlowPushInner::BlockPc(index) => PushInner::BlockSize { index: *index, start: 0, end: 0 },
+                        BlockFlowPushInner::BlockSize(index) => PushInner::BlockPc { index: *index, line: 0 },
                     }
-                    RFunctionArg::VariableWithField(variable_with_field) => {
-                        let field_name = variable_with_field.field.as_str();
-                        let variable_name = variable_with_field.variable.as_str();
-                        match field_name {
-                            "pc" => {
-                                if let Some(block_index) = block_names.get(variable_name) {
-                                    block_dependencies.insert(*block_index);
-                                    Push::BlockPc(*block_index)
-                                } else {
-                                    return Err(new_error_from_located(
-                                        input,
-                                        &variable_with_field.variable,
-                                        &format!("Block `{}` not found.", variable_name),
-                                    ));
-                                }
-                            },
-                            "size" => {
-                                if let Some(block_index) = block_names.get(variable_name) {
-                                    block_dependencies.insert(*block_index);
-                                    Push::BlockSize(*block_index)
-                                } else {
-                                    return Err(new_error_from_located(
-                                        input,
-                                        &variable_with_field.variable,
-                                        &format!("Block `{}` not found.", variable_name),
-                                    ));
-                                }
-                            },
-                            _ => {
-                                return Err(new_error_from_located(
-                                    input,
-                                    &variable_with_field.field,
-                                    &format!("Unknown field `{}`.", field_name),
-                                ))
-                            }
-                        }
-                    }
-                };
+                }));
+            },
+            BlockFlowItem::BlockEsp(BlockFlowBlockRef { index: block_index, location, attributes }) => {
+                current_attributes.apply_many(attributes.clone());
+                if !r_blocks[*block_index].inner().abstr {
+                    return Err(new_error_from_location(input, &location, "Use the `*` to refer to a non abstract block."));
+                }
 
-                items.push(WithAttributes::new(BlockItem::Push(push), current_attributes));
-                current_attributes = Vec::new();
-            }
+                if parents.contains(block_index) {
+                    return Err(new_error_from_location(input, &location, "Recursive block references unhandled"));
+                }
+
+                parents.insert(*block_index);
+                let Block { items: mut sub_items } = pre_process_block(
+                    input,
+                    *block_index,
+                    r_blocks,
+                    blocks_flow,
+                    context.next_context(true, items.len()),
+                    parents,
+                    current_attributes,
+                    block_attributes,
+                    unique_dereferences,
+                )?;
+                parents.remove(&block_index);
+                items.append(&mut sub_items);
+            },
+            BlockFlowItem::BlockStar(BlockFlowBlockRef { index: block_index, location, attributes }) => {
+                current_attributes.apply_many(attributes.clone());
+                if context.inside_abstract {
+                    return Err(new_error_from_location(
+                        input,
+                        &location,
+                        "Cannot refer to non-abstract block inside an abstract block."
+                    ));
+                }
+
+                if r_blocks[*block_index].inner().abstr {
+                    return Err(new_error_from_location(input, &location, "Use the `&` to refer to an abstract block."));
+                }
+
+                if unique_dereferences.contains(block_index) {
+                    return Err(new_error_from_location(input, &location, "This non-abtrsact block has already been dereferenced once."));
+                }
+                println!("dereferencing {} inside {} (root {})" ,
+                    r_blocks[*block_index].inner().name_str(),
+                    r_blocks[index_to_process].inner().name_str(),
+                    r_blocks[context.root_index].inner().name_str(),
+                );
+                unique_dereferences.insert(*block_index);
+
+                if parents.contains(block_index) {
+                    return Err(new_error_from_location(input, &location, "Recursive block references unhandled"));
+                }
+
+                parents.insert(*block_index);
+                let Block { items: mut sub_items } = pre_process_block(
+                    input,
+                    *block_index,
+                    r_blocks,
+                    blocks_flow,
+                    context.next_context(false, items.len()),
+                    parents,
+                    current_attributes,
+                    block_attributes,
+                    unique_dereferences,
+                )?;
+                parents.remove(&block_index);
+                items.append(&mut sub_items);
+
+            },
         }
     }
 
-    if let Some(c_bytes) = current_bytes.take() {
-        items.push(WithAttributes::new(BlockItem::Bytes(c_bytes.into()), current_attributes));
-        current_attributes = Vec::new();
-    }
-    if current_attributes.len() > 0 {
-        items.push(WithAttributes::new(BlockItem::Bytes(Bytes::new()), current_attributes));
-    }
-
-    Ok(Block {
-        items,
-        dependencies: block_dependencies,
-    })
+    Ok(Block { items })
 }
 
-fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Bytes) {
-    if let Some(c_bytes) = current_bytes.as_mut() {
-        c_bytes.extend_from_slice(new_bytes);
-    } else {
-        current_bytes.replace(new_bytes[..].into());
-    }
-}
-
-fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) {
-    if let Some(c_bytes) = current_bytes.as_mut() {
-        c_bytes.put_u8(new_byte);
-    } else {
-        let mut c_bytes = BytesMut::new();
-        c_bytes.put_u8(new_byte);
-        current_bytes.replace(c_bytes);
-    }
-}

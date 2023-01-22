@@ -31,16 +31,23 @@ pub fn get_next<'a, 'rule>(pairs: &'a mut Pairs<'rule, Rule>, expected: Rule) ->
 
 #[derive(Debug, Clone)]
 pub struct Located<T> {
+    pub location: Location,
+    pub inner: T,
+}
+
+#[derive(Debug, Clone)]
+pub struct Location {
     pub start: usize,
     pub end: usize,
-    pub inner: T,
 }
 
 impl<T: FromPair> FromPair for Located<T> {
     fn from_pair(pair: Pair<'_, Rule>) -> Result<Located<T>, pest::error::Error<Rule>> {
         Ok(Self {
-            start: pair.as_span().start(),
-            end: pair.as_span().end(),
+            location: Location {
+                start: pair.as_span().start(),
+                end: pair.as_span().end(),
+            },
             inner: T::from_pair(pair)?,
         })
     }

@@ -39,6 +39,30 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
         res
     }
 
+    pub fn pop_leaf(&mut self) -> Option<T> {
+        let Some(leaf) = self.leaves.iter().next().cloned() else {
+            return None;
+        };
+        self.leaves.remove(&leaf);
+        assert!(self.children.get(&leaf).is_none());
+        if let Some(parents) = self.parents.remove(&leaf) {
+            for parent in parents {
+                let set = self.children.get_mut(&parent).unwrap();
+                if set.len() == 1 {
+                    assert!(self.children.remove(&parent).is_some());
+                    self.leaves.insert(parent);
+                } else {
+                    assert!(set.remove(&leaf));
+                }
+            }
+        }
+        Some(leaf)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.children.len() == 0 && self.parents.len() == 0
+    }
+
     fn insert_child(&mut self, parent: &T, child: &T) -> bool {
         insert_or_create(&mut self.children, parent, child)
     }
