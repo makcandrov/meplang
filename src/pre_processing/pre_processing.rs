@@ -211,6 +211,7 @@ pub fn pre_process_contract(
     let mut block_dependency_tree = DependencyTree::<usize>::new();
 
     while let Some(index_to_process) = blocks_queue.pop() {
+        block_dependency_tree.add_node_if_needed(&index_to_process);
         let block = analyze_block_flow(
             input,
             &r_contract.blocks[index_to_process],
@@ -220,9 +221,11 @@ pub fn pre_process_contract(
             &mut contract_dependencies,
         )?;
 
-        for dependency in &block.dependencies {
-            block_dependency_tree.insert_if_needed(dependency, &index_to_process);
+        for (dependency, strong) in &block.dependencies {
             blocks_queue.insert_if_needed(*dependency);
+            if *strong {
+                block_dependency_tree.insert_if_needed(dependency, &index_to_process);
+            }
         }
 
         blocks_flow.insert(index_to_process, block);
@@ -231,10 +234,10 @@ pub fn pre_process_contract(
 
     // TODO: unused warnings
 
-    let mut blocks_queue = Vec::<usize>::new();
-    while let Some(index) = block_dependency_tree.pop_leaf() {
-        blocks_queue.push(index);
-    }
+    let mut blocks_queue: Vec<usize> = block_dependency_tree.leaves().iter().map(|x| *x).collect();
+    println!("roots found {:?}", blocks_queue.iter().map(|x| r_contract.blocks[*x].inner().name_str()).collect::<Vec<&str>>());
+
+    while block_dependency_tree.pop_leaf().is_some() {}
 
     if !block_dependency_tree.is_empty() {
         return Err(new_generic_error("Recursive blocks unhandled".to_owned()));

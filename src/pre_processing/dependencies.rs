@@ -26,6 +26,15 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
         Self::default()
     }
 
+    pub fn add_node_if_needed(&mut self, item: &T) {
+        if let Some(set) = self.children.get(item) {
+            if set.len() > 0 {
+                return;
+            }
+        }
+        self.leaves.insert(item.clone());
+    }
+
     pub fn insert_if_needed(&mut self, item: &T, dependency: &T) -> bool {
         let res = self.insert_child(item, dependency);
         assert!(self.insert_parent(item, dependency));
@@ -61,6 +70,10 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
 
     pub fn is_empty(&self) -> bool {
         self.children.len() == 0 && self.parents.len() == 0
+    }
+
+    pub fn leaves(&self) -> &HashSet<T> {
+        &self.leaves
     }
 
     fn insert_child(&mut self, parent: &T, child: &T) -> bool {

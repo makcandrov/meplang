@@ -9,7 +9,8 @@ use super::{attribute::Attribute, opcode::str_to_op};
 pub struct BlockFlow {
     pub items: Vec<BlockFlowItem>,
     pub end_attributes: Vec<Attribute>,
-    pub dependencies: HashSet<usize>,
+    // block indes => if * or &
+    pub dependencies: HashMap<usize, bool>,
 }
 
 #[derive(Clone, Debug)]
@@ -56,7 +57,7 @@ pub fn analyze_block_flow(
     let mut items = Vec::<BlockFlowItem>::new();
     let mut current_bytes: Option<BytesMut> = None;
     let mut current_attributes = Vec::<Attribute>::new();
-    let mut block_dependencies = HashSet::<usize>::new();
+    let mut block_dependencies = HashMap::<usize, bool>::new();
 
     for r_item_with_attr in &r_block.items {
         for r_attribute in &r_item_with_attr.attributes {
@@ -107,7 +108,7 @@ pub fn analyze_block_flow(
                     ));
                 };
 
-                block_dependencies.insert(*block_index);
+                block_dependencies.insert(*block_index, true);
                 items.push(BlockFlowItem::BlockStar(BlockFlowBlockRef {
                     index: *block_index,
                     location: r_item.location.clone(),
@@ -125,7 +126,7 @@ pub fn analyze_block_flow(
                     ));
                 };
 
-                block_dependencies.insert(*block_index);
+                block_dependencies.insert(*block_index, true);
                 items.push(BlockFlowItem::BlockEsp(BlockFlowBlockRef {
                     index: *block_index,
                     location: r_item.location.clone(),
@@ -188,7 +189,7 @@ pub fn analyze_block_flow(
                         match field_name {
                             "pc" => {
                                 if let Some(block_index) = block_names.get(variable_name) {
-                                    block_dependencies.insert(*block_index);
+                                    block_dependencies.insert(*block_index, false);
                                     BlockFlowPushInner::BlockPc(*block_index)
                                 } else {
                                     return Err(new_error_from_located(
@@ -200,7 +201,7 @@ pub fn analyze_block_flow(
                             },
                             "size" => {
                                 if let Some(block_index) = block_names.get(variable_name) {
-                                    block_dependencies.insert(*block_index);
+                                    block_dependencies.insert(*block_index, false);
                                     BlockFlowPushInner::BlockSize(*block_index)
                                 } else {
                                     return Err(new_error_from_located(
