@@ -83,7 +83,7 @@ pub fn analyze_block_flow(
                     return Err(new_error_from_located(
                         input,
                         &r_item,
-                        &format!("Contract `{}` not found.", variable.as_str()),
+                        &format!("Unknown opcode `{}`.", variable.as_str()),
                     ));
                 }
                 continue;
