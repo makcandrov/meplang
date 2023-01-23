@@ -393,8 +393,8 @@ fn pre_process_block(
                     attributes: current_attributes.clone(),
                     inner: match inner {
                         BlockFlowPushInner::Constant(bytes) => PushInner::Constant(bytes.clone()),
-                        BlockFlowPushInner::BlockPc(index) => PushInner::BlockSize { index: *index, start: 0, end: 0 },
-                        BlockFlowPushInner::BlockSize(index) => PushInner::BlockPc { index: *index, line: 0 },
+                        BlockFlowPushInner::BlockPc(index) => PushInner::BlockPc { index: *index, line: 0 },
+                        BlockFlowPushInner::BlockSize(index) => PushInner::BlockSize { index: *index, start: 0, end: 0 },
                     }
                 }));
             },

@@ -20,12 +20,14 @@ pub fn compile_contracts(
     bytecodes.remove(&0).unwrap()
 }
 
+#[derive(Clone, Debug)]
 struct PcHole {
     pub block_index: usize,
     pub line: usize,
     pub hole_pos: usize,
 }
 
+#[derive(Clone, Debug)]
 struct SizeHole {
     pub block_index: usize,
     pub line_start: usize,
@@ -33,6 +35,7 @@ struct SizeHole {
     pub hole_pos: usize,
 }
 
+#[derive(Clone, Debug)]
 enum Hole {
     Pc(PcHole),
     Size(SizeHole),
@@ -111,12 +114,11 @@ fn compile_contract(
             },
             Hole::Size(size_hole) => {
                 let positions = block_positions.get(&size_hole.block_index).unwrap();
-                let size = positions[size_hole.line_start] - positions[size_hole.line_end];
+                let size = positions[size_hole.line_end] - positions[size_hole.line_start];
                 res[size_hole.hole_pos + 1] = (size % 256) as u8;
                 res[size_hole.hole_pos] = (size / 256) as u8;
             },
         }
     }
-
     res.into()
 }
