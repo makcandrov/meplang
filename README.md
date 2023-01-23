@@ -97,11 +97,9 @@ contract Contract {
 
     #[assume(msize = 0x00)]
     block main {
-        // mem[0x1c..0x20] = 0x70a08231
-        push(balance_of_selector) push(0x) mstore
+        push(balance_of_selector) push(0x) mstore // mem[0x1c..0x20] = 0x70a08231
         #[assume(msize = 0x20)]
-        // mem[0x20..0x40] = address(this)
-        address push(0x20) mstore
+        address push(0x20) mstore // mem[0x20..0x40] = address(this)
         #[assume(msize = 0x40)]
     
         // mem[0x00..0x20] = weth.call{value: 0, gas: gas()}(mem[0x1c..0x20])
