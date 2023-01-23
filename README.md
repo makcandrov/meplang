@@ -158,7 +158,7 @@ contract Contract {
 }
 ```
 - Many **attributes** exist to guide the compiler. They are declared over a contract, a block, or a line inside a block using the syntax `#[ATTRIBUTE]`. The current list of existing attributes is:
-    -   `assume` to tell the compiler that *from here*, an opcode will push on the stack a defined value. The copiled can then replace some `push` opcodes by these. 
+    -   `assume` to tell the compiler that *from this point*, an opcode will push on the stack a defined value. The compiler can then replace some `push` opcodes with these assumptions. 
     - `clear_assume` to clear an assumption made previously.
     - `main` the main block can be marked with this attribute if it is not named `main`.
     - `last` to tell the compiler that the block must be placed at the end of the bytecode.
@@ -168,7 +168,7 @@ More examples of contracts can be found in the folder [examples](examples).
 
 ## Future features
 
-- Make this crate as a library that exports compilation functions. 
-- `assert` attribute tu put conditions on a block pc or a contract size.
+- Make this crate a library that exports compilation functions. 
+- `assert` attribute to impose conditions on a block pc or a contract size.
 - Heuristics to improve compilation optimizations.
 - Inheritance of contracts.
