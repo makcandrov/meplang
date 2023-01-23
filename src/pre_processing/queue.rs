@@ -1,5 +1,5 @@
 use core::hash::Hash;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Default, Clone, Debug)]
 pub struct DedupQueue<T> {

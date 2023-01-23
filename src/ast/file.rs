@@ -36,14 +36,16 @@ impl FromPair for RFile {
                     match contract_decl_with_attr.as_rule() {
                         Rule::EOI => (),
                         Rule::contract_decl_with_attr => {
-                            contracts.push(Located::<WithAttributes<Located<RContract>>>::from_pair(
-                                contract_decl_with_attr,
-                            )?);
-                        }
+                            contracts.push(
+                                Located::<WithAttributes<Located<RContract>>>::from_pair(
+                                    contract_decl_with_attr,
+                                )?,
+                            );
+                        },
                         _ => unreachable!(),
                     }
                 }
-            }
+            },
             _ => unreachable!(),
         }
         Ok(Self(contracts))

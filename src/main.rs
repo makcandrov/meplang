@@ -22,11 +22,7 @@ fn init_env_logger() {
                     _ => Color::White,
                 })
                 .set_bold(true);
-            writeln!(
-                buf,
-                "{}",
-                style.value(format!("{}: {}", record.level(), record.args(),))
-            )
+            writeln!(buf, "{}", style.value(format!("{}: {}", record.level(), record.args(),)))
         })
         .init();
 }
@@ -42,7 +38,7 @@ fn main() {
         Err(err) => {
             log::error!("Parsing failed:\n{}", err);
             return;
-        }
+        },
     };
 
     // dbg!(&meplang_file);
@@ -52,7 +48,7 @@ fn main() {
         Err(err) => {
             log::error!("Pre-processing failed:\n{}", err);
             return;
-        }
+        },
     };
 
     dbg!(&pre_processed);

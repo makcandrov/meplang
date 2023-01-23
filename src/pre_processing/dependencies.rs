@@ -13,11 +13,7 @@ pub struct DependencyTree<T: Debug + Clone> {
 
 impl<T: Debug + Clone> Default for DependencyTree<T> {
     fn default() -> Self {
-        Self {
-            parents: HashMap::new(),
-            children: HashMap::new(),
-            leaves: HashSet::new(),
-        }
+        Self { parents: HashMap::new(), children: HashMap::new(), leaves: HashSet::new() }
     }
 }
 
