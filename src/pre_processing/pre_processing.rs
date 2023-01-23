@@ -49,7 +49,7 @@ pub enum PushInner {
 pub fn pre_process(
     input: &str,
     r_file: RFile,
-    contract_name: String,
+    contract_name: &str,
 ) -> Result<Vec<Contract>, pest::error::Error<Rule>> {
     let mut main_index: Option<usize> = None;
     let mut contract_names = HashMap::<String, usize>::new();
@@ -75,7 +75,7 @@ pub fn pre_process(
                 &format!("Name `{}` already used", name),
             ));
         }
-        if name == &contract_name {
+        if name == contract_name {
             // cannot happen twice
             main_index.replace(contract_index);
         }
@@ -94,7 +94,7 @@ pub fn pre_process(
     let mut contracts_dependency_tree = DependencyTree::<usize>::new();
 
     while let Some(index_to_process) = contracts_queue.pop() {
-        log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
+        // log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
         contracts_dependency_tree.add_node_if_needed(&index_to_process);
         let (contract, dependencies) = pre_process_contract(
             input,
@@ -257,7 +257,7 @@ pub fn pre_process_contract(
     }
 
     let mut blocks_queue: Vec<usize> = block_dependency_tree.leaves().iter().map(|x| *x).collect();
-    println!("roots found {:?}", blocks_queue.iter().map(|x| r_contract.blocks[*x].inner().name_str()).collect::<Vec<&str>>());
+    // println!("roots found {:?}", blocks_queue.iter().map(|x| r_contract.blocks[*x].inner().name_str()).collect::<Vec<&str>>());
 
     while block_dependency_tree.pop_leaf().is_some() {}
 
@@ -375,7 +375,7 @@ fn pre_process_block(
     unique_dereferences: &mut HashSet<usize>,
     new_positions: &mut HashMap<usize, BlockPosition>,
 ) -> Result<Block, pest::error::Error<Rule>> {
-    log::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
+    // log::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
 
     current_attributes.apply_many(block_attributes[index_to_process].clone());
 
@@ -442,11 +442,11 @@ fn pre_process_block(
                 if unique_dereferences.contains(block_index) {
                     return Err(new_error_from_location(input, &location, "This non-abtrsact block has already been dereferenced once."));
                 }
-                println!("dereferencing {} inside {} (root {})" ,
-                    r_blocks[*block_index].inner().name_str(),
-                    r_blocks[index_to_process].inner().name_str(),
-                    r_blocks[context.root_index].inner().name_str(),
-                );
+                // println!("dereferencing {} inside {} (root {})" ,
+                //     r_blocks[*block_index].inner().name_str(),
+                //     r_blocks[index_to_process].inner().name_str(),
+                //     r_blocks[context.root_index].inner().name_str(),
+                // );
                 unique_dereferences.insert(*block_index);
 
                 if parents.contains(block_index) {
