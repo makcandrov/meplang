@@ -28,6 +28,11 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
                 return;
             }
         }
+        if let Some(set) = self.parents.get(item) {
+            if set.len() > 0 {
+                return;
+            }
+        }
         self.leaves.insert(item.clone());
     }
 
@@ -73,10 +78,12 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
     }
 
     fn insert_child(&mut self, parent: &T, child: &T) -> bool {
+        self.leaves.remove(parent);
         insert_or_create(&mut self.children, parent, child)
     }
 
     fn insert_parent(&mut self, parent: &T, child: &T) -> bool {
+        self.leaves.remove(child);
         insert_or_create(&mut self.parents, child, parent)
     }
 }
