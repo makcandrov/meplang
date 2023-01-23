@@ -33,7 +33,7 @@ struct SizeHole {
     pub hole_pos: usize,
 }
 
-pub enum Hole {
+enum Hole {
     Pc(PcHole),
     Size(SizeHole),
 }
