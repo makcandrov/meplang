@@ -1,5 +1,4 @@
 contract HelloWorld {
-
     block main {
         // copy the bytes into memory
         push(hello_world.size) push(hello_world.pc) push(0x) codecopy
@@ -12,5 +11,4 @@ contract HelloWorld {
         // "Hello World!" as bytes
         0x48656c6c6f20576f726c6421
     }
-
 }
