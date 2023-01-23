@@ -165,3 +165,9 @@ contract Contract {
     - `keep` to tell the compiler that this block must be kept somewhere in the bytecode even if it is unused.
 
 More examples of contracts can be found in the folder [examples](examples).
+
+## Future features
+
+- `assert` attribute tu put conditions on a block pc or a contract size.
+- Heuristics to improve compilation optimizations.
+- Inheritance of contracts.
