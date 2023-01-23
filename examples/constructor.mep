@@ -1,4 +1,4 @@
-contract Constrctor {
+contract Constructor {
     block main {
         // copy the bytes into memory
         push(deployed.size) push(deployed.pc) push(0x) codecopy

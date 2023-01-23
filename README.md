@@ -88,12 +88,12 @@ Compile the contract `Constructor` to get the deployment bytecode of the contrac
 
 - A **contract** is declared with the keyword `contract`. Many contracts can be defined in a single file. A contract can copy the runtime bytecode of another contract using `&Contract.code` inside a block.
 - A **block** is declared inside a contract using the keyword `block`. A block can be defined **abstract** (see later) using the keyword `abstract` before `block`. The first opcodes of the contract are from the necessary block named `main` (or a block surrounded by the attribute `#[main]`).
-- A **constant** is declared inside a contract using the keyword `constant`. Constants can only be used inside a function `push` inside a block.
+- A **constant** is declared inside a contract using the keyword `const`. Constants can only be used inside a function `push` inside a block.
 
 ```rust
 contract Contract {
-    constant balance_of_selector = 0x70a08231;
-    constant weth_address = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    const balance_of_selector = 0x70a08231;
+    const weth_address = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     #[assume(msize = 0x00)]
     block main {
@@ -113,7 +113,7 @@ contract Contract {
 - Inside a block, any opcode can be used *except PUSH1 to PUSH32 opcodes*. Raw bytecode can also be used as is. A value can be pushed using the function `push`, that can take in argument an hexadecimal litteral, a constant, a *non-abstract* block pc or *non-abstract* block size. Only values inside a `push` function will try to be optimized by the compilater. 
 ```rust
 contract Contract {
-    constant magic_number = 0xff;
+    const magic_number = 0xff;
 
     #[assume(msize = 0x00)]
     block main {
