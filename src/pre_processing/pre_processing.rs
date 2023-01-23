@@ -95,6 +95,7 @@ pub fn pre_process(
 
     while let Some(index_to_process) = contracts_queue.pop() {
         log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
+        contracts_dependency_tree.add_node_if_needed(&index_to_process);
         let (contract, dependencies) = pre_process_contract(
             input,
             &r_file.0[index_to_process],

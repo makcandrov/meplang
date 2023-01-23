@@ -21,6 +21,7 @@ pub fn remap_contracts(
         }
     }
 
+    dbg!("b");
     remap(contracts, remapping)
 }
 
@@ -55,11 +56,11 @@ pub fn remap_blocks(
             }
         }
     }
-
+    dbg!("a");
     remap(blocks, remapping)
 }
 
-fn remap<T>(mut map: HashMap<usize, T>, remapping: &Vec<usize>) -> Vec<T> {
+fn remap<T: std::fmt::Debug>(mut map: HashMap<usize, T>, remapping: &Vec<usize>) -> Vec<T> {
     let res = remapping.iter().map(|x| map.remove(x).unwrap()).collect();
     assert!(map.len() == 0);
     res

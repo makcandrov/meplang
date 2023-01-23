@@ -157,6 +157,7 @@ pub fn analyze_block_flow(
                 };
 
                 items.push(BlockFlowItem::Contract(*contract_index));
+                dbg!("bah si");
                 contract_dependencies.insert(*contract_index);
             },
             RBlockItem::Function(function) => {
@@ -171,7 +172,7 @@ pub fn analyze_block_flow(
                 }
 
                 let push = match &function.arg.inner {
-                    RFunctionArg::HexLitteral(hex_litteral) => BlockFlowPushInner::Constant(hex_litteral.0.clone()),
+                    RFunctionArg::HexLitteral(hex_litteral) => BlockFlowPushInner::Constant(format_bytes(&hex_litteral.0)),
                     RFunctionArg::Variable(variable) => {
                         let Some(constant_value) = constants.get(variable.as_str()) else {
                             return Err(new_error_from_located(
@@ -181,8 +182,8 @@ pub fn analyze_block_flow(
                             ));
                         };
 
-                        BlockFlowPushInner::Constant(constant_value.clone())
-                    }
+                        BlockFlowPushInner::Constant(format_bytes(constant_value))
+                    },
                     RFunctionArg::VariableWithField(variable_with_field) => {
                         let field_name = variable_with_field.field.as_str();
                         let variable_name = variable_with_field.variable.as_str();
@@ -258,4 +259,16 @@ pub fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) 
         c_bytes.put_u8(new_byte);
         current_bytes.replace(c_bytes);
     }
+}
+
+fn format_bytes(bytes: &Bytes) -> Bytes {
+    let mut i = 0;
+    while i < bytes.len() && bytes[i] == 0x00 {
+        i += 1;
+    }
+    if i == bytes.len() {
+        return Bytes::from(vec![0x00u8]);
+    }
+
+    bytes.slice(i..bytes.len())
 }

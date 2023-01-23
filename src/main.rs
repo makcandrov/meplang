@@ -1,5 +1,6 @@
 use crate::pre_processing::pre_processing::pre_process;
 use ast::RFile;
+use compile::compile::compile_contracts;
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
 use std::io::Write;
@@ -30,7 +31,7 @@ fn init_env_logger() {
 fn main() {
     init_env_logger();
 
-    let contract_name = "SwapperConstructor".to_owned();
+    let contract_name = "SwapperRuntime".to_owned();
     let input = std::fs::read_to_string("input.mep").unwrap();
 
     let r_file = match RFile::new(input.clone()) {
@@ -51,5 +52,9 @@ fn main() {
         },
     };
 
-    dbg!(&pre_processed);
+    // dbg!(&pre_processed);
+
+    let compiled = compile_contracts(pre_processed);
+
+    dbg!(hex::encode(compiled));
 }
