@@ -1,0 +1,22 @@
+contract Constrctor {
+
+    block main {
+        // copy the bytes into memory
+        push(deployed.size) push(deployed.pc) push(0x) codecopy
+
+        // return them
+        push(deployed.size) push(0x) return 
+    }
+
+    block deployed {
+        &Deployed.code
+    }
+
+}
+
+// the contract that will be deployed
+contract Deployed {
+
+    block main {}
+
+}
