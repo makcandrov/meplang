@@ -33,14 +33,14 @@ impl<T: Eq + Hash + Clone> DedupQueue<T> {
         })
     }
 
-    pub fn mark_as_seen(&mut self, item: T) {
-        self.seen.insert(item.clone());
-        if let Some(index) = self.indexes.remove(&item) {
-            let queue_len = self.queue.len();
-            self.queue.swap(index, queue_len);
-            self.queue.pop();
-        }
-    }
+    // pub fn mark_as_seen(&mut self, item: T) {
+    //     self.seen.insert(item.clone());
+    //     if let Some(index) = self.indexes.remove(&item) {
+    //         let queue_len = self.queue.len();
+    //         self.queue.swap(index, queue_len);
+    //         self.queue.pop();
+    //     }
+    // }
 
     pub fn seen(&self, item: &T) -> bool {
         self.seen.contains(item)

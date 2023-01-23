@@ -148,15 +148,4 @@ impl<T> WithAttributes<T> {
     pub fn inner(&self) -> &T {
         &self.inner
     }
-
-    pub fn new(item: T, attr: Vec<Located<RAttribute>>) -> Self {
-        Self { inner: item, attributes: attr }
-    }
-
-    pub fn new_without_attribute(item: T) -> Self {
-        Self {
-            attributes: Vec::new(),
-            inner: item,
-        }
-    }
 }

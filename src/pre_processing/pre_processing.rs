@@ -8,17 +8,17 @@ use crate::parser::parser::Located;
 use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
 use crate::pre_processing::dependencies::DependencyTree;
+use crate::pre_processing::remapping::remap_blocks;
 
 use super::attribute::Attribute;
 use super::block_flow::{BlockFlow, analyze_block_flow, BlockFlowItem, BlockFlowPush, BlockFlowPushInner, BlockFlowBlockRef};
 use super::queue::DedupQueue;
+use super::remapping::remap_contracts;
 
 #[derive(Clone, Default, Debug)]
 pub struct Contract {
-    pub dependencies: HashSet<usize>,
     pub blocks: Vec<Block>,
-    pub main: usize,
-    pub last: Option<usize>,
+    pub last: bool,
 }
 
 #[derive(Clone, Default, Debug)]
@@ -35,8 +35,8 @@ pub enum BlockItem {
 
 #[derive(Clone, Debug)]
 pub struct Push {
-    attributes: Attributes,
-    inner: PushInner,
+    pub attributes: Attributes,
+    pub inner: PushInner,
 }
 
 #[derive(Clone, Debug)]
@@ -95,32 +95,43 @@ pub fn pre_process(
 
     while let Some(index_to_process) = contracts_queue.pop() {
         log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
-        let contract = pre_process_contract(
+        let (contract, dependencies) = pre_process_contract(
             input,
             &r_file.0[index_to_process],
             &contract_attributes[index_to_process],
             &contract_names,
         )?;
 
-        for dependency in &contract.dependencies {
-            contracts_queue.insert_if_needed(*dependency);
-            contracts_dependency_tree.insert_if_needed(&index_to_process, dependency);
+        for dependency in dependencies {
+            contracts_queue.insert_if_needed(dependency);
+            contracts_dependency_tree.insert_if_needed(&index_to_process, &dependency);
         }
 
         contracts.insert(index_to_process, contract);
     }
 
-    // for index in 0..file.0.len() {
-    //     if contract_remapping_queue.remapping(&index).is_none() {
-    //         log::warn!("{}", new_error_from_located(
-    //             code,
-    //             file.0[index].inner_located(),
-    //             &format!("Unused contract `{}`", file.0[index].inner().name())
-    //         ));
-    //     }
-    // }
+    for index in 0..r_file.0.len() {
+        if contracts.get(&index).is_none() {
+            log::warn!("{}", new_error_from_located(
+                input,
+                r_file.0[index].inner(),
+                &format!("Unused contract `{}`", r_file.0[index].inner().name_str())
+            ));
+        }
+    }
 
-    Ok(contracts.into_iter().map(|(_, c)| c).collect())
+    let mut remapping_indexes = Vec::<usize>::new();
+    while let Some(contract_index) = contracts_dependency_tree.pop_leaf() {
+        remapping_indexes.push(contract_index);
+    }
+
+    if !contracts_dependency_tree.is_empty() {
+        return Err(new_generic_error("Recursive contracts unhandled".to_owned()));
+    }
+
+    remapping_indexes.reverse();
+
+    Ok(remap_contracts(contracts, &remapping_indexes))
 }
 
 pub fn pre_process_contract(
@@ -128,7 +139,7 @@ pub fn pre_process_contract(
     r_contract_with_attr: &Located<WithAttributes<Located<RContract>>>,
     default_attributes: &Attributes,
     contract_names: &HashMap<String, usize>,
-) -> Result<Contract, pest::error::Error<Rule>> {
+) -> Result<(Contract, HashSet<usize>), pest::error::Error<Rule>> {
     let r_contract = &r_contract_with_attr.inner.inner;
 
     let constants = extract_constants(input, &r_contract.constants, contract_names)?;
@@ -194,6 +205,8 @@ pub fn pre_process_contract(
         }
     }
 
+    let main_index = main_index;
+    let last_index = last_index;
     let block_attributes = block_attributes;
     let block_names = block_names;
 
@@ -232,7 +245,15 @@ pub fn pre_process_contract(
     }
     let blocks_flow = blocks_flow;
 
-    // TODO: unused warnings
+    for block_index in 0..r_contract.blocks.len() {
+        if blocks_flow.get(&block_index).is_none() {
+            log::warn!("{}", new_error_from_located(
+                input,
+                &r_contract.blocks[block_index],
+                &format!("Unused block `{}`", &r_contract.blocks[block_index].inner().name_str())
+            ));
+        }
+    }
 
     let mut blocks_queue: Vec<usize> = block_dependency_tree.leaves().iter().map(|x| *x).collect();
     println!("roots found {:?}", blocks_queue.iter().map(|x| r_contract.blocks[*x].inner().name_str()).collect::<Vec<&str>>());
@@ -245,8 +266,15 @@ pub fn pre_process_contract(
 
     let mut blocks = HashMap::<usize, Block>::new();
     let mut unique_dereferences = HashSet::<usize>::new();
+    let mut new_positions = HashMap::<usize, BlockPosition>::new();
+    let mut remapping = Vec::<usize>::new();
+    remapping.push(main_index);
 
     while let Some(index_to_process) = blocks_queue.pop() {
+        if index_to_process != main_index && index_to_process != last_index.unwrap_or(main_index) {
+            remapping.push(index_to_process);
+        }
+
         let block = pre_process_block(
             input,
             index_to_process,
@@ -257,17 +285,19 @@ pub fn pre_process_contract(
             &mut default_attributes.clone(),
             &block_attributes,
             &mut unique_dereferences,
+            &mut new_positions,
         )?;
 
         blocks.insert(index_to_process, block);
     }
+    if let Some(last_index) = last_index {
+        remapping.push(last_index);
+    }
 
-    Ok(Contract {
-        blocks: blocks.into_iter().map(|(_, c)| c).collect(),
-        dependencies: contract_dependencies,
-        main: main_index,
-        last: last_index,
-    })
+    Ok((Contract {
+        blocks: remap_blocks(blocks, &remapping, &new_positions),
+        last: last_index.is_some(),
+    }, contract_dependencies))
 }
 
 pub fn extract_constants(
@@ -301,10 +331,17 @@ pub fn extract_constants(
 }
 
 #[derive(Clone, Debug)]
-struct BlockPreProcessingContext {
+pub struct BlockPreProcessingContext {
     pub root_index: usize,
     pub inside_abstract: bool,
     pub line_index: usize,
+}
+
+#[derive(Clone, Debug)]
+pub struct BlockPosition {
+    pub root_index: usize,
+    pub start: usize,
+    pub end: usize,
 }
 
 impl BlockPreProcessingContext{
@@ -335,6 +372,7 @@ fn pre_process_block(
     current_attributes: &mut Attributes,
     block_attributes: &Vec<Vec<Attribute>>,
     unique_dereferences: &mut HashSet<usize>,
+    new_positions: &mut HashMap<usize, BlockPosition>,
 ) -> Result<Block, pest::error::Error<Rule>> {
     log::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
 
@@ -342,8 +380,10 @@ fn pre_process_block(
 
     let mut items = Vec::<BlockItem>::new();
 
-    for block_flow in &blocks_flow.get(&index_to_process).unwrap().items {
-        match block_flow {
+    let block_flow = blocks_flow.get(&index_to_process).unwrap();
+
+    for block_flow_item in &block_flow.items {
+        match block_flow_item {
             BlockFlowItem::Bytes(bytes) => items.push(BlockItem::Bytes(bytes.clone())),
             BlockFlowItem::Contract(contract_index) => items.push(BlockItem::Contract(*contract_index)),
             BlockFlowItem::Push(BlockFlowPush { attributes, inner }) => {
@@ -378,9 +418,11 @@ fn pre_process_block(
                     current_attributes,
                     block_attributes,
                     unique_dereferences,
+                    new_positions
                 )?;
                 parents.remove(&block_index);
                 items.append(&mut sub_items);
+                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
             },
             BlockFlowItem::BlockStar(BlockFlowBlockRef { index: block_index, location, attributes }) => {
                 current_attributes.apply_many(attributes.clone());
@@ -421,14 +463,20 @@ fn pre_process_block(
                     current_attributes,
                     block_attributes,
                     unique_dereferences,
+                    new_positions
                 )?;
                 parents.remove(&block_index);
                 items.append(&mut sub_items);
-
+                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
             },
         }
     }
 
+    new_positions.insert(index_to_process, BlockPosition {
+        root_index: context.root_index,
+        start: context.line_index,
+        end: context.line_index + items.len(),
+    });
+
     Ok(Block { items })
 }
-
