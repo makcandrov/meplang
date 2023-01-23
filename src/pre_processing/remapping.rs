@@ -21,7 +21,6 @@ pub fn remap_contracts(
         }
     }
 
-    dbg!("b");
     remap(contracts, remapping)
 }
 
@@ -56,7 +55,6 @@ pub fn remap_blocks(
             }
         }
     }
-    dbg!("a");
     remap(blocks, remapping)
 }
 

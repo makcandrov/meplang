@@ -157,7 +157,6 @@ pub fn analyze_block_flow(
                 };
 
                 items.push(BlockFlowItem::Contract(*contract_index));
-                dbg!("bah si");
                 contract_dependencies.insert(*contract_index);
             },
             RBlockItem::Function(function) => {
