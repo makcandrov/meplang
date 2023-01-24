@@ -110,7 +110,8 @@ contract Contract {
 }
 ```
 
-- Inside a block, any opcode can be used *except PUSH1 to PUSH32 opcodes*. Raw bytecode can also be used as is. A value can be pushed using the function `push`, that can take in argument an hexadecimal litteral, a constant, a *non-abstract* block pc or *non-abstract* block size. Only values inside a `push` function will try to be optimized by the compilater. 
+- Inside a block, any opcode can be used *except PUSH1 to PUSH32 opcodes*. Raw bytecode can also be used as is. A value can be pushed using the function `push`, which can take an hexadecimal literal, a constant, a *non-abstract* block PC or size as an argument. Only values inside a `push` function will be optimized by the compiler.
+
 ```rust
 contract Contract {
     const magic_number = 0xff;
@@ -134,7 +135,7 @@ contract Contract {
     }
 }
 ```
-- A *non-abstract* block can be copied at most once inside another block using the opreator `*`. An *abstarct* block can be copied as many times as wanted inside other blocks using the operator `&`. So we cannot refer to the `pc` or to the `size` of an *abstract* block, because it may appear multiple times in the bytecode, and not be compiled the same everytime.
+- A *non-abstract* block can be copied at most once inside another block using the opreator `*`. An *abstract* block can be copied as many times as desired inside other blocks using the operator `&`. Therefore, we cannot refer to the `pc` or to the `size` of an *abstract* block, because it may appear multiple times in the bytecode, and not be compiled the same every time.
 
 ```rust
 contract Contract {
