@@ -1,6 +1,6 @@
 # Meplang - An EVM low-level language
 
-Meplang is a low-level programming language that produces EVM bytecode. It is designed for developers who need full control over the control flow in their smart contracts. It is strongly inspired by the Rust syntax.
+Meplang is a low-level programming language that produces EVM bytecode. It is designed for developers who need full control over the control flow in their smart contracts.
 
 Meplang is a low-level language and is not meant for complex smart contract development. It is recommended to use more high-level languages like Solidity or Vyper for that.
 
