@@ -9,9 +9,9 @@ use super::opcode::*;
 
 const fn is_assumable_opcode(op: OpCode) -> bool {
     match op {
-        ADDRESS | BALANCE | ORIGIN | CALLER | CALLVALUE | CALLDATASIZE | GASPRICE | RETURNDATASIZE |
+        ADDRESS | ORIGIN | CALLER | CALLVALUE | CALLDATASIZE | GASPRICE | RETURNDATASIZE |
         BLOCKHASH | COINBASE | TIMESTAMP | NUMBER | DIFFICULTY /* | RANDOM | PREVRANDAO */ | GASLIMIT | CHAINID | 
-        SELFBALANCE | BASEFEE | MSIZE => true,
+        BASEFEE | MSIZE => true,
         _ => false,
     }
 }
@@ -175,7 +175,10 @@ impl Attributes {
         match attribute {
             Attribute::Assume { op, v } => {
                 self.assumes.insert(op, v);
-            }
+            },
+            Attribute::ClearAssume { op } => {
+                self.assumes.remove(&op);
+            },
             Attribute::Optimization(enabled) => self.optimization = enabled,
             _ => (),
         }
