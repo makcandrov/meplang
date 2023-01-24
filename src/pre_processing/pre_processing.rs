@@ -197,7 +197,7 @@ pub fn pre_process_contract(
         {
             return Err(new_error_from_located(
                 input,
-                &r_contract.name,
+                &r_block.name,
                 &format!("Name `{}` already used", block_name),
             ));
         }
