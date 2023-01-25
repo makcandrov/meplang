@@ -1,7 +1,10 @@
-use std::collections::{HashSet, HashMap};
-use crate::parser::{parser::{Rule, Located, Location}, error::new_error_from_located};
-use bytes::{Bytes, BytesMut, BufMut};
 use crate::ast::*;
+use crate::parser::{
+    error::new_error_from_located,
+    parser::{Located, Location, Rule},
+};
+use bytes::{BufMut, Bytes, BytesMut};
+use std::collections::{HashMap, HashSet};
 
 use super::{attribute::Attribute, opcode::str_to_op};
 
@@ -87,7 +90,7 @@ pub fn analyze_block_flow(
                     ));
                 }
                 continue;
-            }
+            },
             _ => (),
         }
 
@@ -116,7 +119,9 @@ pub fn analyze_block_flow(
                 }));
                 current_attributes = Vec::new();
             },
-            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(variable))) => {
+            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(
+                variable,
+            ))) => {
                 let block_name = variable.as_str();
                 let Some(block_index) = block_names.get(variable.as_str()) else {
                     return Err(new_error_from_located(
@@ -133,10 +138,10 @@ pub fn analyze_block_flow(
                     attributes: current_attributes,
                 }));
                 current_attributes = Vec::new();
-            }
-            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::VariableWithField(
-                variable_with_field,
-            ))) => {
+            },
+            RBlockItem::BlockRef(RBlockRef::Esp(
+                RVariableOrVariableWithField::VariableWithField(variable_with_field),
+            )) => {
                 let field_name = variable_with_field.field.as_str();
                 if field_name != "code" {
                     return Err(new_error_from_located(
@@ -171,7 +176,9 @@ pub fn analyze_block_flow(
                 }
 
                 let push = match &function.arg.inner {
-                    RFunctionArg::HexLitteral(hex_litteral) => BlockFlowPushInner::Constant(format_bytes(&hex_litteral.0)),
+                    RFunctionArg::HexLitteral(hex_litteral) => {
+                        BlockFlowPushInner::Constant(format_bytes(&hex_litteral.0))
+                    },
                     RFunctionArg::Variable(variable) => {
                         let Some(constant_value) = constants.get(variable.as_str()) else {
                             return Err(new_error_from_located(
@@ -217,9 +224,9 @@ pub fn analyze_block_flow(
                                     &variable_with_field.field,
                                     &format!("Unknown field `{}`.", field_name),
                                 ))
-                            }
+                            },
                         }
-                    }
+                    },
                 };
 
                 items.push(BlockFlowItem::Push(BlockFlowPush {
@@ -227,7 +234,7 @@ pub fn analyze_block_flow(
                     attributes: current_attributes,
                 }));
                 current_attributes = Vec::new();
-            }
+            },
         }
     }
 
@@ -235,11 +242,7 @@ pub fn analyze_block_flow(
         items.push(BlockFlowItem::Bytes(c_bytes.into()));
     }
 
-    Ok(BlockFlow {
-        items,
-        end_attributes: current_attributes,
-        dependencies: block_dependencies,
-    })
+    Ok(BlockFlow { items, end_attributes: current_attributes, dependencies: block_dependencies })
 }
 
 pub fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Bytes) {

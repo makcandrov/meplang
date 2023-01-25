@@ -2,9 +2,54 @@ use core::hash::Hash;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default, Clone, Debug)]
-pub struct DedupQueue<T> {
-    queue: Vec<T>,
+pub struct IndexedVec<T> {
+    v: Vec<T>,
     indexes: HashMap<T, usize>,
+}
+
+impl<T: Default> IndexedVec<T> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<T: Eq + Hash + Clone> IndexedVec<T> {
+    pub fn insert(&mut self, item: T) -> bool {
+        if !self.indexes.contains_key(&item) {
+            self.indexes.insert(item.clone(), self.v.len());
+            self.v.push(item);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn remove(&mut self, item: &T) -> bool {
+        let Some(index) = self.indexes.remove(item) else {
+            return false;
+        };
+        let length = self.v.len();
+        self.v.swap(index, length - 1);
+        self.v.pop();
+        true
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        let Some(item) = self.v.pop() else {
+            return None;
+        };
+        assert!(self.indexes.remove(&item).unwrap() == self.v.len());
+        Some(item)
+    }
+
+    pub fn as_vec(&self) -> &Vec<T> {
+        &self.v
+    }
+}
+
+#[derive(Default, Clone, Debug)]
+pub struct DedupQueue<T> {
+    queue: IndexedVec<T>,
     seen: HashSet<T>,
 }
 
@@ -20,27 +65,14 @@ impl<T: Eq + Hash + Clone> DedupQueue<T> {
             false
         } else {
             self.seen.insert(item.clone());
-            self.indexes.insert(item.clone(), self.queue.len());
-            self.queue.push(item);
+            assert!(self.queue.insert(item));
             true
         }
     }
 
     pub fn pop(&mut self) -> Option<T> {
-        self.queue.pop().map(|item| {
-            self.indexes.remove(&item);
-            item
-        })
+        self.queue.pop()
     }
-
-    // pub fn mark_as_seen(&mut self, item: T) {
-    //     self.seen.insert(item.clone());
-    //     if let Some(index) = self.indexes.remove(&item) {
-    //         let queue_len = self.queue.len();
-    //         self.queue.swap(index, queue_len);
-    //         self.queue.pop();
-    //     }
-    // }
 
     pub fn seen(&self, item: &T) -> bool {
         self.seen.contains(item)

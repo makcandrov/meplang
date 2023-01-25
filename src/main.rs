@@ -29,7 +29,7 @@ fn init_env_logger() {
         .init();
 }
 
-const HELP_MESSAGE: &str =  "\
+const HELP_MESSAGE: &str = "\
 Usage: meplang <COMMAND>\n\n\
 Commands:\n\
 \tcompile: Compile a Meplang file into EVM bytecode.\n\
@@ -88,7 +88,7 @@ fn main() {
                     _ => {
                         log::error!("Unexpected argument `{}`.", &arg);
                         return;
-                    }
+                    },
                 }
             }
 
@@ -108,13 +108,16 @@ fn main() {
                     if let Some(output_file) = output_file {
                         match std::fs::write(&output_file, result) {
                             Ok(()) => {
-                                println!("Contract `{}` bytecode written in the file `{}`.", contract, output_file);
+                                println!(
+                                    "Contract `{}` bytecode written in the file `{}`.",
+                                    contract, output_file
+                                );
                                 return;
                             },
                             Err(err) => {
                                 log::error!("{}", err);
                                 return;
-                            }
+                            },
                         }
                     } else {
                         println!("Contract `{}` bytecode: {}", contract, result);
@@ -126,7 +129,6 @@ fn main() {
                     return;
                 },
             }
-
         },
         _ => log::error!("Unexpected command `{}`", mode),
     }

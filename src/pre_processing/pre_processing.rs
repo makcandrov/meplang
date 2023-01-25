@@ -7,7 +7,7 @@ use crate::parser::error::{new_error_from_located, new_generic_error, new_error_
 use crate::parser::parser::Located;
 use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
-use crate::pre_processing::dependencies::DependencyTree;
+use crate::pre_processing::dependencies::DepsGraph;
 use crate::pre_processing::remapping::remap_blocks;
 
 use super::attribute::Attribute;
@@ -91,7 +91,7 @@ pub fn pre_process(
     let mut contracts_queue = DedupQueue::<usize>::new();
     contracts_queue.insert_if_needed(main_index);
 
-    let mut contracts_dependency_tree = DependencyTree::<usize>::new();
+    let mut contracts_dependency_tree = DepsGraph::<usize>::new();
 
     while let Some(index_to_process) = contracts_queue.pop() {
         // log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
@@ -222,7 +222,7 @@ pub fn pre_process_contract(
 
     let mut blocks_flow = HashMap::<usize, BlockFlow>::new();
     let mut contract_dependencies = HashSet::<usize>::new();
-    let mut block_dependency_tree = DependencyTree::<usize>::new();
+    let mut block_dependency_tree = DepsGraph::<usize>::new();
 
     while let Some(index_to_process) = blocks_queue.pop() {
         block_dependency_tree.add_node_if_needed(&index_to_process);

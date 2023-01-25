@@ -4,20 +4,22 @@ use std::{
     hash::Hash,
 };
 
+use super::queue::IndexedVec;
+
 #[derive(Debug, Clone)]
-pub struct DependencyTree<T: Debug + Clone> {
+pub struct DepsGraph<T: Debug + Clone> {
     parents: HashMap<T, HashSet<T>>,
     children: HashMap<T, HashSet<T>>,
-    leaves: HashSet<T>,
+    leaves: IndexedVec<T>,
 }
 
-impl<T: Debug + Clone> Default for DependencyTree<T> {
+impl<T: Default + Debug + Clone> Default for DepsGraph<T> {
     fn default() -> Self {
-        Self { parents: HashMap::new(), children: HashMap::new(), leaves: HashSet::new() }
+        Self { parents: HashMap::new(), children: HashMap::new(), leaves: IndexedVec::new() }
     }
 }
 
-impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
+impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
     pub fn new() -> Self {
         Self::default()
     }
@@ -50,10 +52,9 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
     }
 
     pub fn pop_leaf(&mut self) -> Option<T> {
-        let Some(leaf) = self.leaves.iter().next().cloned() else {
+        let Some(leaf) = self.leaves.pop() else {
             return None;
         };
-        self.leaves.remove(&leaf);
         assert!(self.children.get(&leaf).is_none());
         if let Some(parents) = self.parents.remove(&leaf) {
             for parent in parents {
@@ -73,8 +74,8 @@ impl<T: Debug + Clone + Eq + Hash> DependencyTree<T> {
         self.children.len() == 0 && self.parents.len() == 0
     }
 
-    pub fn leaves(&self) -> &HashSet<T> {
-        &self.leaves
+    pub fn leaves(&self) -> &Vec<T> {
+        &self.leaves.as_vec()
     }
 
     fn insert_child(&mut self, parent: &T, child: &T) -> bool {

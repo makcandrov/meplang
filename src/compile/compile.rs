@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 
-use bytes::{Bytes, BytesMut, BufMut};
+use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::pre_processing::pre_processing::{Block, Contract, BlockItem, PushInner};
+use crate::pre_processing::pre_processing::{Block, BlockItem, Contract, PushInner};
 
 /// dumb compiler, will be improved later ;)
-pub fn compile_contracts(
-    contracts: Vec<Contract>,
-) -> Bytes {
+pub fn compile_contracts(contracts: Vec<Contract>) -> Bytes {
     let mut bytecodes = HashMap::<usize, Bytes>::new();
 
     for contract_index in (0..contracts.len()).rev() {
@@ -41,10 +39,7 @@ enum Hole {
     Size(SizeHole),
 }
 
-fn compile_contract(
-    blocks: &Vec<Block>,
-    bytecodes: &HashMap<usize, Bytes>,
-) -> Bytes {
+fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> Bytes {
     let mut res = BytesMut::new();
 
     let mut block_positions = HashMap::<usize, Vec<usize>>::new();
@@ -57,7 +52,9 @@ fn compile_contract(
             pcs.push(res.len());
             match item {
                 BlockItem::Bytes(bytes) => res.extend_from_slice(bytes),
-                BlockItem::Contract(contract_index) => res.extend_from_slice(bytecodes.get(contract_index).unwrap()),
+                BlockItem::Contract(contract_index) => {
+                    res.extend_from_slice(bytecodes.get(contract_index).unwrap())
+                },
                 BlockItem::Push(push) => {
                     let assumes: HashMap<Bytes, u8> = if push.attributes.optimization {
                         push.attributes.assumes.iter().map(|(x, y)| (y.clone(), *x)).collect()
@@ -83,7 +80,6 @@ fn compile_contract(
                             }));
                             res.put_u8(0x00);
                             res.put_u8(0x00);
-
                         },
                         PushInner::BlockPc { index, line } => {
                             res.put_u8(0x61);
@@ -94,7 +90,6 @@ fn compile_contract(
                             }));
                             res.put_u8(0x00);
                             res.put_u8(0x00);
-
                         },
                     }
                 },
