@@ -169,7 +169,6 @@ More examples of contracts can be found in the folder [examples](examples).
 
 ## Future features
 
-- Make this crate a library that exports compilation functions. 
 - `assert` attribute to impose conditions on a block pc or a contract size.
 - Heuristics to improve compilation optimizations.
 - Inheritance of contracts.
