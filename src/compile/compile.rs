@@ -96,6 +96,27 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
             }
         }
         pcs.push(res.len());
+
+        let mut block_bytes_iter = res[pcs[0]..*pcs.last().unwrap()].iter();
+
+        let mut bytes_to_add = 0;
+        while let Some(op) = block_bytes_iter.next() {
+            if let Some(mut remaining_push) = get_push_length(*op) {
+                while remaining_push > 0 {
+                    if block_bytes_iter.next().is_some() {
+                        remaining_push = remaining_push - 1;
+                    } else {
+                        bytes_to_add = remaining_push;
+                        break;
+                    }
+                }
+            }
+        }
+
+        for _ in 0..bytes_to_add {
+            res.put_u8(0x00); // todo: filling pattern
+        }
+
         block_positions.insert(block_index, pcs);
     }
 
@@ -104,16 +125,30 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
             Hole::Pc(pc_hole) => {
                 let positions = block_positions.get(&pc_hole.block_index).unwrap();
                 let pc = positions[pc_hole.line];
+                if pc > 0xffff {
+                    panic!("file too long");
+                }
                 res[pc_hole.hole_pos + 1] = (pc % 256) as u8;
                 res[pc_hole.hole_pos] = (pc / 256) as u8;
             },
             Hole::Size(size_hole) => {
                 let positions = block_positions.get(&size_hole.block_index).unwrap();
                 let size = positions[size_hole.line_end] - positions[size_hole.line_start];
+                if size > 0xffff {
+                    panic!("file too long");
+                }
                 res[size_hole.hole_pos + 1] = (size % 256) as u8;
                 res[size_hole.hole_pos] = (size / 256) as u8;
             },
         }
     }
     res.into()
+}
+
+fn get_push_length(op: u8) -> Option<usize> {
+    if 0x5f <= op && op < 0x80 {
+        Some((op - 0x5f) as usize)
+    } else {
+        None
+    }
 }
