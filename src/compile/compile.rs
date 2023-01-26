@@ -44,8 +44,8 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
 
     let mut block_positions = HashMap::<usize, Vec<usize>>::new();
     let mut holes = Vec::<Hole>::new();
-
-    for block_index in 0..blocks.len() {
+    let blocks_len = blocks.len();
+    for block_index in 0..blocks_len {
         let block = &blocks[block_index];
         let mut pcs = Vec::with_capacity(block.items.len());
         for item in &block.items {
@@ -97,26 +97,28 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
         }
         pcs.push(res.len());
 
-        let mut block_bytes_iter = res[pcs[0]..*pcs.last().unwrap()].iter();
+        if block_index != blocks_len - 1 {
+            let mut block_bytes_iter = res[pcs[0]..*pcs.last().unwrap()].iter();
 
-        let mut bytes_to_add = 0;
-        while let Some(op) = block_bytes_iter.next() {
-            if let Some(mut remaining_push) = get_push_length(*op) {
-                while remaining_push > 0 {
-                    if block_bytes_iter.next().is_some() {
-                        remaining_push = remaining_push - 1;
-                    } else {
-                        bytes_to_add = remaining_push;
-                        break;
+            let mut bytes_to_add = 0;
+            while let Some(op) = block_bytes_iter.next() {
+                if let Some(mut remaining_push) = get_push_length(*op) {
+                    while remaining_push > 0 {
+                        if block_bytes_iter.next().is_some() {
+                            remaining_push = remaining_push - 1;
+                        } else {
+                            bytes_to_add = remaining_push;
+                            break;
+                        }
                     }
                 }
             }
-        }
 
-        for _ in 0..bytes_to_add {
-            res.put_u8(0x00); // todo: filling pattern
+            for _ in 0..bytes_to_add {
+                res.put_u8(0x00); // todo: filling pattern
+            }
         }
-
+        
         block_positions.insert(block_index, pcs);
     }
 
