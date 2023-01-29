@@ -6,14 +6,15 @@ use crate::parser::{
 use bytes::{BufMut, Bytes, BytesMut};
 use std::collections::{HashMap, HashSet};
 
+use super::queue::DedupQueue;
 use super::{attribute::Attribute, opcode::str_to_op};
 
 #[derive(Clone, Debug)]
 pub struct BlockFlow {
     pub items: Vec<BlockFlowItem>,
     pub end_attributes: Vec<Attribute>,
-    // block indes => if * or &
-    pub dependencies: HashMap<usize, bool>,
+    pub strong_deps: DedupQueue<usize>,
+    pub weak_deps: DedupQueue<usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -60,7 +61,9 @@ pub fn analyze_block_flow(
     let mut items = Vec::<BlockFlowItem>::new();
     let mut current_bytes: Option<BytesMut> = None;
     let mut current_attributes = Vec::<Attribute>::new();
-    let mut block_dependencies = HashMap::<usize, bool>::new();
+
+    let mut strong_deps = DedupQueue::<usize>::new();
+    let mut weak_deps = DedupQueue::<usize>::new();
 
     for r_item_with_attr in &r_block.items {
         for r_attribute in &r_item_with_attr.attributes {
@@ -111,7 +114,7 @@ pub fn analyze_block_flow(
                     ));
                 };
 
-                block_dependencies.insert(*block_index, true);
+                strong_deps.insert_if_needed(*block_index);
                 items.push(BlockFlowItem::BlockStar(BlockFlowBlockRef {
                     index: *block_index,
                     location: r_item.location.clone(),
@@ -131,7 +134,7 @@ pub fn analyze_block_flow(
                     ));
                 };
 
-                block_dependencies.insert(*block_index, true);
+                strong_deps.insert_if_needed(*block_index);
                 items.push(BlockFlowItem::BlockEsp(BlockFlowBlockRef {
                     index: *block_index,
                     location: r_item.location.clone(),
@@ -196,7 +199,7 @@ pub fn analyze_block_flow(
                         match field_name {
                             "pc" => {
                                 if let Some(block_index) = block_names.get(variable_name) {
-                                    block_dependencies.insert(*block_index, false);
+                                    weak_deps.insert_if_needed(*block_index);
                                     BlockFlowPushInner::BlockPc(*block_index)
                                 } else {
                                     return Err(new_error_from_located(
@@ -208,7 +211,7 @@ pub fn analyze_block_flow(
                             },
                             "size" => {
                                 if let Some(block_index) = block_names.get(variable_name) {
-                                    block_dependencies.insert(*block_index, false);
+                                    weak_deps.insert_if_needed(*block_index);
                                     BlockFlowPushInner::BlockSize(*block_index)
                                 } else {
                                     return Err(new_error_from_located(
@@ -242,7 +245,12 @@ pub fn analyze_block_flow(
         items.push(BlockFlowItem::Bytes(c_bytes.into()));
     }
 
-    Ok(BlockFlow { items, end_attributes: current_attributes, dependencies: block_dependencies })
+    Ok(BlockFlow {
+        items,
+        end_attributes: current_attributes,
+        strong_deps,
+        weak_deps,
+    })
 }
 
 pub fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Bytes) {

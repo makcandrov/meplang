@@ -77,4 +77,8 @@ impl<T: Eq + Hash + Clone> DedupQueue<T> {
     pub fn seen(&self, item: &T) -> bool {
         self.seen.contains(item)
     }
+
+    pub fn as_vec(&self) -> &Vec<T> {
+        self.queue.as_vec()
+    }
 }

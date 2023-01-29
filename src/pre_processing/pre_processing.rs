@@ -235,11 +235,12 @@ pub fn pre_process_contract(
             &mut contract_dependencies,
         )?;
 
-        for (dependency, strong) in &block.dependencies {
-            blocks_queue.insert_if_needed(*dependency);
-            if *strong {
-                block_dependency_tree.insert_if_needed(dependency, &index_to_process);
-            }
+        for strong_dep in block.strong_deps.as_vec() {
+            blocks_queue.insert_if_needed(*strong_dep);
+            block_dependency_tree.insert_if_needed(strong_dep, &index_to_process);
+        }
+        for weak_dep in block.weak_deps.as_vec() {
+            blocks_queue.insert_if_needed(*weak_dep);
         }
 
         blocks_flow.insert(index_to_process, block);
@@ -473,6 +474,13 @@ fn pre_process_block(
         }
     }
 
+    // println!(
+    //     "block {} | root: {} | start: {} | end: {}",
+    //     r_blocks[index_to_process].inner().name_str(),
+    //     context.root_index,
+    //     context.line_index,
+    //     context.line_index + items.len(),
+    // );
     new_positions.insert(index_to_process, BlockPosition {
         root_index: context.root_index,
         start: context.line_index,
