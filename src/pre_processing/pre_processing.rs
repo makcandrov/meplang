@@ -359,7 +359,7 @@ impl BlockPreProcessingContext{
         Self {
             root_index: self.root_index,
             inside_abstract,
-            line_index,
+            line_index: self.line_index + line_index,
         }
     }
 }
