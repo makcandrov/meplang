@@ -46,7 +46,10 @@ pub const PC: OpCode = 0x58;
 pub const MSIZE: OpCode = 0x59;
 pub const GAS: OpCode = 0x5a;
 pub const JUMPDEST: OpCode = 0x5b;
-// pub const PUSH0: OpCode = 0x5f;
+
+pub const PUSH0: OpCode = 0x5f;
+pub const PUSH2: OpCode = 0x61;
+pub const PUSH32: OpCode = 0x7f;
 
 pub fn str_to_op(name: &str) -> Option<OpCode> {
     Some(match name.to_lowercase().as_str() {
@@ -127,7 +130,8 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "msize" => MSIZE,
         "gas" => GAS,
         "jumpdest" => JUMPDEST,
-        // "push0" => 0x57, // invalid
+
+        "push0" => PUSH0,
 
         // 0x60 range - pushes. // all pushes instructions are invalid
 
