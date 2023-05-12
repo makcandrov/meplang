@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::pre_processing::pre_processing::{Block, BlockItem, Contract, PushInner};
+use crate::pre_processing::{pre_processing::{Block, BlockItem, Contract, PushInner}, opcode::{PUSH0, PUSH2, PUSH32}};
 
 /// dumb compiler, will be improved later ;)
 pub fn compile_contracts(contracts: Vec<Contract>) -> Bytes {
@@ -63,15 +63,17 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
                     };
                     match &push.inner {
                         PushInner::Constant(cst) => {
-                            if let Some(op) = assumes.get(cst) {
+                            if cst.is_empty() {
+                                res.put_u8(PUSH0);
+                            } else if let Some(op) = assumes.get(cst) {
                                 res.put_u8(*op);
                             } else {
-                                res.put_u8(0x5f + (cst.len() as u8));
+                                res.put_u8(PUSH0 + (cst.len() as u8));
                                 res.extend_from_slice(cst);
                             }
                         },
                         PushInner::BlockSize { index, start, end } => {
-                            res.put_u8(0x61);
+                            res.put_u8(PUSH2);
                             holes.push(Hole::Size(SizeHole {
                                 block_index: *index,
                                 line_start: *start,
@@ -82,7 +84,7 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
                             res.put_u8(0x00);
                         },
                         PushInner::BlockPc { index, line } => {
-                            res.put_u8(0x61);
+                            res.put_u8(PUSH2);
                             holes.push(Hole::Pc(PcHole {
                                 block_index: *index,
                                 line: *line,
@@ -148,8 +150,8 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
 }
 
 fn get_push_length(op: u8) -> Option<usize> {
-    if 0x5f <= op && op < 0x80 {
-        Some((op - 0x5f) as usize)
+    if PUSH0 <= op && op <= PUSH32 {
+        Some((op - PUSH0) as usize)
     } else {
         None
     }

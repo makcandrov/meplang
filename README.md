@@ -110,7 +110,7 @@ contract Contract {
 }
 ```
 
-- Inside a block, any opcode can be used *except PUSH1 to PUSH32 opcodes*. Raw bytecode can also be used as is. A value can be pushed using the function `push`, which can take an hexadecimal literal, a constant, a *non-abstract* block PC or size as an argument. Only values inside a `push` function will be optimized by the compiler.
+- Inside a block, any opcode can be used *except PUSH1 to PUSH32 opcodes* (PUSH0 is allowed). Raw bytecode can also be used as is. A value can be pushed using the function `push`, which can take an hexadecimal literal, a constant, a *non-abstract* block PC or size as an argument. Only values inside a `push` function will be optimized by the compiler.
 
 ```rust
 contract Contract {
