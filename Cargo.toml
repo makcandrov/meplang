@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 primitive-types = "0.12.1"
-pest = "2.5.5"
-pest_derive = "2.5.5"
+pest = "2.5"
+pest_derive = "2.5"
 bytes = "1.4.0"
 hex = "0.4.3"
 log = "0.4.17"

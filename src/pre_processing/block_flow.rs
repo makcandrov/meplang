@@ -277,7 +277,7 @@ fn format_bytes(bytes: &Bytes) -> Bytes {
         i += 1;
     }
     if i == bytes.len() {
-        return Bytes::from(vec![0x00u8]);
+        return Bytes::new();
     }
 
     bytes.slice(i..bytes.len())
