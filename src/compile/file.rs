@@ -2,9 +2,9 @@ use bytes::Bytes;
 
 use crate::{ast::RFile, pre_processing::pre_processing::pre_process};
 
-use super::compile::compile_contracts;
+use super::{compile::compile_contracts, settings::CompilerSettings};
 
-pub fn compile_file(path: &str, contract_name: &str) -> Result<Bytes, String> {
+pub fn compile_file(path: &str, contract_name: &str, settings: CompilerSettings) -> Result<Bytes, String> {
     let input = match std::fs::read_to_string(path) {
         Ok(input) => input,
         Err(err) => return Err(format!("Could not open file `{}`: {}", path, err.to_string())),
@@ -28,7 +28,7 @@ pub fn compile_file(path: &str, contract_name: &str) -> Result<Bytes, String> {
 
     // dbg!(&pre_processed);
 
-    let compiled = compile_contracts(pre_processed);
+    let compiled = compile_contracts(pre_processed, settings);
 
     Ok(compiled)
 }

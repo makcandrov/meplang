@@ -48,6 +48,7 @@ pub const GAS: OpCode = 0x5a;
 pub const JUMPDEST: OpCode = 0x5b;
 
 pub const PUSH0: OpCode = 0x5f;
+pub const PUSH1: OpCode = 0x60;
 pub const PUSH2: OpCode = 0x61;
 pub const PUSH32: OpCode = 0x7f;
 

@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLitteral};
 
+use super::block_flow::format_bytes;
 use super::opcode::*;
 
 const fn is_assumable_opcode(op: OpCode) -> bool {
@@ -105,7 +106,7 @@ impl Attribute {
                 };
 
                 if is_assumable_opcode(op) {
-                    Ok(Self::Assume { op, v: bytes }) 
+                    Ok(Self::Assume { op, v: format_bytes(&bytes) }) 
                 } else {
                     Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"))
                 }

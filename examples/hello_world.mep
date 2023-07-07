@@ -1,10 +1,11 @@
 contract HelloWorld {
+    #[assume(returndatasize = 0x00)]
     block main {
         // copy the bytes into memory
-        push(hello_world.size) push(hello_world.pc) push(0x) codecopy
+        push(hello_world.size) push(hello_world.pc) push0 codecopy
 
         // return them
-        push(hello_world.size) push(0x) return 
+        push(hello_world.size) push0 return
     }
 
     block hello_world {

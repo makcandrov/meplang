@@ -271,7 +271,7 @@ pub fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) 
     }
 }
 
-fn format_bytes(bytes: &Bytes) -> Bytes {
+pub fn format_bytes(bytes: &Bytes) -> Bytes {
     let mut i = 0;
     while i < bytes.len() && bytes[i] == 0x00 {
         i += 1;
