@@ -1,4 +1,4 @@
-use compile::file::compile_file;
+use compile::{file::compile_file, settings::CompilerSettings};
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
 use std::io::Write;
@@ -46,9 +46,10 @@ fn main() {
     match mode.as_str() {
         "version" => println!("Meplang version: {}", env!("CARGO_PKG_VERSION")),
         "compile" => {
-            let mut contract: Option<String> = None;
-            let mut input_file: Option<String> = None;
-            let mut output_file: Option<String> = None;
+            let mut contract = Option::<String>::None;
+            let mut input_file = Option::<String>::None;
+            let mut output_file = Option::<String>::None;
+            let mut settings = Option::<CompilerSettings>::None;
 
             while let Some(arg) = args.next() {
                 match arg.as_str() {
@@ -82,6 +83,24 @@ fn main() {
                             return;
                         }
                     },
+                    "-settings" => {
+                        let Some(next) = args.next() else {
+                            log::error!("Expected an argument after `{}`.", arg);
+                            return;
+                        };
+                        let decoded: CompilerSettings = match serde_json::from_str(&next) {
+                            Ok(decoded) => decoded,
+                            Err(err) => {
+                                log::error!("Unable to decode compiler settings: {}", err);
+                                return;
+                            }
+                        };
+                        if settings.replace(decoded).is_some() {
+                            log::error!("Compiler settings specified multiple times.");
+                            return;
+                        }
+                        dbg!(&settings);
+                    },
                     _ => {
                         log::error!("Unexpected argument `{}`.", &arg);
                         return;
@@ -99,7 +118,7 @@ fn main() {
                 return;
             };
 
-            match compile_file(input_file.as_str(), contract.as_str()) {
+            match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default()) {
                 Ok(result) => {
                     let result = format!("0x{}", hex::encode(result));
                     if let Some(output_file) = output_file {

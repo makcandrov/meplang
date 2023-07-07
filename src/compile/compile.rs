@@ -2,16 +2,18 @@ use std::collections::HashMap;
 
 use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::pre_processing::{pre_processing::{Block, BlockItem, Contract, PushInner}, opcode::{PUSH0, PUSH2, PUSH32}};
+use crate::pre_processing::{pre_processing::{Block, BlockItem, Contract, PushInner}, opcode::{PUSH0, PUSH2, PUSH32, PUSH1}};
+
+use super::{settings::{CompilerSettings, FillingPatern}, fillers::{fill_with_random, fill_with_pattern}};
 
 /// dumb compiler, will be improved later ;)
-pub fn compile_contracts(contracts: Vec<Contract>) -> Bytes {
+pub fn compile_contracts(contracts: Vec<Contract>, settings: CompilerSettings) -> Bytes {
     let mut bytecodes = HashMap::<usize, Bytes>::new();
 
     for contract_index in (0..contracts.len()).rev() {
         bytecodes.insert(
             contract_index,
-            compile_contract(&contracts[contract_index].blocks, &bytecodes),
+            compile_contract(&contracts[contract_index].blocks, &bytecodes, &settings),
         );
     }
 
@@ -39,7 +41,7 @@ enum Hole {
     Size(SizeHole),
 }
 
-fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> Bytes {
+fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>, settings: &CompilerSettings) -> Bytes {
     let mut res = BytesMut::new();
 
     let mut block_positions = HashMap::<usize, Vec<usize>>::new();
@@ -63,13 +65,18 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
                     };
                     match &push.inner {
                         PushInner::Constant(cst) => {
-                            if cst.is_empty() {
+                            if settings.push0 && cst.is_empty() {
                                 res.put_u8(PUSH0);
                             } else if let Some(op) = assumes.get(cst) {
                                 res.put_u8(*op);
                             } else {
-                                res.put_u8(PUSH0 + (cst.len() as u8));
-                                res.extend_from_slice(cst);
+                                if !settings.push0 && cst.is_empty() {
+                                    res.put_u8(PUSH1);
+                                    res.put_u8(0x00);
+                                } else {
+                                    res.put_u8(PUSH0 + (cst.len() as u8));
+                                    res.extend_from_slice(cst);
+                                }
                             }
                         },
                         PushInner::BlockSize { index, start, end } => {
@@ -116,8 +123,9 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>) -> B
                 }
             }
 
-            for _ in 0..bytes_to_add {
-                res.put_u8(0x00); // todo: filling pattern
+            match &settings.filling_pattern {
+                FillingPatern::Random => fill_with_random(&mut res, bytes_to_add),
+                FillingPatern::Repeat(pattern) => fill_with_pattern(&mut res, pattern, bytes_to_add),
             }
         }
         
