@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::pre_processing::opcode::{PUSH0, PUSH1, PUSH2, PUSH32};
+use crate::pre_processing::opcode::{PUSH0, PUSH1, PUSH2, push_length};
 use crate::pre_processing::pre_processing::{Block, BlockItem, Contract, PushInner};
 
 use super::fillers::{fill_with_pattern, fill_with_random};
@@ -117,7 +117,7 @@ fn compile_contract(
 
             let mut bytes_to_add = 0;
             while let Some(op) = block_bytes_iter.next() {
-                if let Some(mut remaining_push) = get_push_length(*op) {
+                if let Some(mut remaining_push) = push_length(*op) {
                     while remaining_push > 0 {
                         if block_bytes_iter.next().is_some() {
                             remaining_push = remaining_push - 1;
@@ -163,12 +163,4 @@ fn compile_contract(
         }
     }
     res.into()
-}
-
-fn get_push_length(op: u8) -> Option<usize> {
-    if PUSH0 <= op && op <= PUSH32 {
-        Some((op - PUSH0) as usize)
-    } else {
-        None
-    }
 }

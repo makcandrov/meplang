@@ -199,3 +199,11 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         _ => return None,
     })
 }
+
+pub fn push_length(op: u8) -> Option<usize> {
+    if PUSH0 <= op && op <= PUSH32 {
+        Some((op - PUSH0) as usize)
+    } else {
+        None
+    }
+}
