@@ -100,7 +100,6 @@ fn main() {
                             log::error!("Compiler settings specified multiple times.");
                             return;
                         }
-                        dbg!(&settings);
                     },
                     _ => {
                         log::error!("Unexpected argument `{}`.", &arg);
@@ -121,8 +120,8 @@ fn main() {
 
             match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default())
             {
-                Ok(result) => {
-                    let result = format!("0x{}", hex::encode(result));
+                Ok(artifacts) => {
+                    let result = format!("0x{}", hex::encode(artifacts.main_bytecode()));
                     if let Some(output_file) = output_file {
                         match std::fs::write(&output_file, result) {
                             Ok(()) => {

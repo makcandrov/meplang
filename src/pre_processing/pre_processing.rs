@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::ops::Deref;
 
 use bytes::Bytes;
 
@@ -21,16 +22,39 @@ use super::remapping::remap_contracts;
 #[derive(Clone, Default, Debug)]
 pub struct Contract {
     pub blocks: Vec<Block>,
+    pub name: String,
     pub last: bool,
 }
 
 #[derive(Clone, Default, Debug)]
 pub struct Block {
+    pub name: String,
     pub items: Vec<BlockItem>,
 }
 
 #[derive(Clone, Debug)]
-pub enum BlockItem {
+pub struct BlockItem {
+    pub inner: BlockItemInner,
+    pub start_names: Vec<String>,
+    pub end_names: Vec<String>,
+}
+
+impl From<BlockItemInner> for BlockItem {
+    fn from(inner: BlockItemInner) -> Self {
+        Self { inner, start_names: Vec::new(), end_names: Vec::new() }
+    }
+}
+
+impl Deref for BlockItem {
+    type Target = BlockItemInner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum BlockItemInner {
     Bytes(Bytes),
     Contract(usize),
     Push(Push),
@@ -73,7 +97,7 @@ pub fn pre_process(
             }
         }
 
-        let r_contract = &r_contract_with_attr.inner.inner;
+        let r_contract = &r_contract_with_attr.inner().inner;
         let name = r_contract.name_str();
         if contract_names.insert(name.to_owned(), contract_names.len()).is_some() {
             return Err(new_error_from_located(
@@ -230,6 +254,9 @@ pub fn pre_process_contract(
                 "A block is already marked as main.",
             ));
         }
+        if r_block.items.is_empty() {
+            return Err(new_error_from_located(input, &r_block.name, "A block must not be empty."));
+        }
     }
 
     let main_index = main_index;
@@ -330,6 +357,7 @@ pub fn pre_process_contract(
 
     Ok((
         Contract {
+            name: r_contract.name_str().to_owned(),
             blocks: remap_blocks(blocks, &remapping, &new_positions),
             last: last_index.is_some(),
         },
@@ -417,24 +445,29 @@ fn pre_process_block(
 
     for block_flow_item in &block_flow.items {
         match block_flow_item {
-            BlockFlowItem::Bytes(bytes) => items.push(BlockItem::Bytes(bytes.clone())),
+            BlockFlowItem::Bytes(bytes) => items.push(BlockItemInner::Bytes(bytes.clone()).into()),
             BlockFlowItem::Contract(contract_index) => {
-                items.push(BlockItem::Contract(*contract_index))
+                items.push(BlockItemInner::Contract(*contract_index).into());
             },
             BlockFlowItem::Push(BlockFlowPush { attributes, inner }) => {
                 current_attributes.apply_many(attributes.clone());
-                items.push(BlockItem::Push(Push {
-                    attributes: current_attributes.clone(),
-                    inner: match inner {
-                        BlockFlowPushInner::Constant(bytes) => PushInner::Constant(bytes.clone()),
-                        BlockFlowPushInner::BlockPc(index) => {
-                            PushInner::BlockPc { index: *index, line: 0 }
+                items.push(
+                    BlockItemInner::Push(Push {
+                        attributes: current_attributes.clone(),
+                        inner: match inner {
+                            BlockFlowPushInner::Constant(bytes) => {
+                                PushInner::Constant(bytes.clone())
+                            },
+                            BlockFlowPushInner::BlockPc(index) => {
+                                PushInner::BlockPc { index: *index, line: 0 }
+                            },
+                            BlockFlowPushInner::BlockSize(index) => {
+                                PushInner::BlockSize { index: *index, start: 0, end: 0 }
+                            },
                         },
-                        BlockFlowPushInner::BlockSize(index) => {
-                            PushInner::BlockSize { index: *index, start: 0, end: 0 }
-                        },
-                    },
-                }));
+                    })
+                    .into(),
+                );
             },
             BlockFlowItem::BlockEsp(BlockFlowBlockRef {
                 index: block_index,
@@ -459,7 +492,7 @@ fn pre_process_block(
                 }
 
                 parents.insert(*block_index);
-                let Block { items: mut sub_items } = pre_process_block(
+                let Block { items: mut sub_items, name: _ } = pre_process_block(
                     input,
                     *block_index,
                     r_blocks,
@@ -521,7 +554,7 @@ fn pre_process_block(
                 }
 
                 parents.insert(*block_index);
-                let Block { items: mut sub_items } = pre_process_block(
+                let Block { items: mut sub_items, name } = pre_process_block(
                     input,
                     *block_index,
                     r_blocks,
@@ -534,6 +567,8 @@ fn pre_process_block(
                     new_positions,
                 )?;
                 parents.remove(&block_index);
+                sub_items.first_mut().unwrap().start_names.push(name.clone());
+                sub_items.last_mut().unwrap().end_names.push(name);
                 items.append(&mut sub_items);
                 current_attributes
                     .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
@@ -548,6 +583,7 @@ fn pre_process_block(
     //     context.line_index,
     //     context.line_index + items.len(),
     // );
+
     new_positions.insert(
         index_to_process,
         BlockPosition {
@@ -557,5 +593,5 @@ fn pre_process_block(
         },
     );
 
-    Ok(Block { items })
+    Ok(Block { items, name: r_blocks[index_to_process].name_str().to_owned() })
 }

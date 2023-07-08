@@ -5,9 +5,9 @@ use crate::parser::parser::{Located, Location, Rule};
 use bytes::{BufMut, Bytes, BytesMut};
 use std::collections::{HashMap, HashSet};
 
-use super::queue::DedupQueue;
 use super::attribute::Attribute;
 use super::opcode::str_to_op;
+use super::queue::DedupQueue;
 
 #[derive(Clone, Debug)]
 pub struct BlockFlow {

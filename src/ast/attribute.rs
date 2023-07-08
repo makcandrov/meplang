@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
@@ -145,6 +147,14 @@ impl<T: FromPair> FromPair for WithAttributes<T> {
 
 impl<T> WithAttributes<T> {
     pub fn inner(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<T> Deref for WithAttributes<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }

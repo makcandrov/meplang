@@ -2,24 +2,34 @@ use std::collections::HashMap;
 
 use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::pre_processing::opcode::{PUSH0, PUSH1, PUSH2, push_length};
-use crate::pre_processing::pre_processing::{Block, BlockItem, Contract, PushInner};
+use crate::compile::artifacts::Artifacts;
+use crate::pre_processing::opcode::{push_length, PUSH0, PUSH1, PUSH2};
+use crate::pre_processing::pre_processing::{Block, BlockItemInner, Contract, PushInner};
 
+use super::artifacts::ContractArtifacts;
 use super::fillers::{fill_with_pattern, fill_with_random};
 use super::settings::{CompilerSettings, FillingPatern};
 
-/// dumb compiler, will be improved later ;)
-pub fn compile_contracts(contracts: Vec<Contract>, settings: CompilerSettings) -> Bytes {
+pub fn compile_contracts(contracts: Vec<Contract>, settings: CompilerSettings) -> Artifacts {
+    let mut artifacts = Artifacts::default();
+    artifacts.main = contracts[0].name.clone();
+
     let mut bytecodes = HashMap::<usize, Bytes>::new();
 
     for contract_index in (0..contracts.len()).rev() {
+        let contract_artifacts =
+            compile_contract(&contracts[contract_index].blocks, &bytecodes, &settings);
+        let contract_name = &contracts[contract_index].name;
+
+        artifacts.contracts.insert(contract_name.clone(), contract_artifacts);
+
         bytecodes.insert(
             contract_index,
-            compile_contract(&contracts[contract_index].blocks, &bytecodes, &settings),
+            artifacts.contracts.get(contract_name).unwrap().bytecode.clone(),
         );
     }
 
-    bytecodes.remove(&0).unwrap()
+    artifacts
 }
 
 #[derive(Clone, Debug)]
@@ -47,7 +57,8 @@ fn compile_contract(
     blocks: &Vec<Block>,
     bytecodes: &HashMap<usize, Bytes>,
     settings: &CompilerSettings,
-) -> Bytes {
+) -> ContractArtifacts {
+    let mut contract_artifacts = ContractArtifacts::default();
     let mut res = BytesMut::new();
 
     let mut block_positions = HashMap::<usize, Vec<usize>>::new();
@@ -55,15 +66,21 @@ fn compile_contract(
     let blocks_len = blocks.len();
     for block_index in 0..blocks_len {
         let block = &blocks[block_index];
+        contract_artifacts.set_start(&block.name, res.len());
+
         let mut pcs = Vec::with_capacity(block.items.len());
         for item in &block.items {
+            for start_name in &item.start_names {
+                contract_artifacts.set_start(start_name, res.len());
+            }
+
             pcs.push(res.len());
-            match item {
-                BlockItem::Bytes(bytes) => res.extend_from_slice(bytes),
-                BlockItem::Contract(contract_index) => {
+            match &item.inner {
+                BlockItemInner::Bytes(bytes) => res.extend_from_slice(bytes),
+                BlockItemInner::Contract(contract_index) => {
                     res.extend_from_slice(bytecodes.get(contract_index).unwrap())
                 },
-                BlockItem::Push(push) => {
+                BlockItemInner::Push(push) => {
                     let assumes: HashMap<Bytes, u8> = if push.attributes.optimization {
                         push.attributes.assumes.iter().map(|(x, y)| (y.clone(), *x)).collect()
                     } else {
@@ -109,6 +126,10 @@ fn compile_contract(
                     }
                 },
             }
+
+            for start_name in &item.start_names {
+                contract_artifacts.set_size(start_name, res.len());
+            }
         }
         pcs.push(res.len());
 
@@ -137,6 +158,7 @@ fn compile_contract(
             }
         }
 
+        contract_artifacts.set_size(&block.name, res.len());
         block_positions.insert(block_index, pcs);
     }
 
@@ -162,5 +184,7 @@ fn compile_contract(
             },
         }
     }
-    res.into()
+
+    contract_artifacts.bytecode = res.into();
+    contract_artifacts
 }

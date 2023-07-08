@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::pre_processing::{Block, BlockItem, BlockPosition, Contract, Push, PushInner};
+use super::pre_processing::{Block, BlockItemInner, BlockPosition, Contract, Push, PushInner};
 
 pub fn remap_contracts(
     mut contracts: HashMap<usize, Contract>,
@@ -11,8 +11,8 @@ pub fn remap_contracts(
     for (_, contract) in &mut contracts {
         for block in &mut contract.blocks {
             for item in &mut block.items {
-                match item {
-                    BlockItem::Contract(ref mut contract_index) => {
+                match &mut item.inner {
+                    BlockItemInner::Contract(ref mut contract_index) => {
                         *contract_index = *remapping_map.get(contract_index).unwrap();
                     },
                     _ => (),
@@ -33,8 +33,8 @@ pub fn remap_blocks(
 
     for (_, block) in &mut blocks {
         for item in &mut block.items {
-            match item {
-                BlockItem::Push(Push {
+            match &mut item.inner {
+                BlockItemInner::Push(Push {
                     attributes: _,
                     inner: PushInner::BlockPc { index, line },
                 }) => {
@@ -42,7 +42,7 @@ pub fn remap_blocks(
                     *line = position.start;
                     *index = *remapping_map.get(&position.root_index).unwrap();
                 },
-                BlockItem::Push(Push {
+                BlockItemInner::Push(Push {
                     attributes: _,
                     inner: PushInner::BlockSize { index, start, end },
                 }) => {
