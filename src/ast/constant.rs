@@ -24,7 +24,8 @@ impl FromPair for RConstant {
 
         let _ = get_next(&mut const_decl_inner, Rule::const_keyword);
 
-        let name = Located::<RVariable>::from_pair(get_next(&mut const_decl_inner, Rule::variable))?;
+        let name =
+            Located::<RVariable>::from_pair(get_next(&mut const_decl_inner, Rule::variable))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::eq);
 

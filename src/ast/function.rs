@@ -59,7 +59,8 @@ impl FromPair for RFunction {
 
         _ = get_next(&mut function_inner, Rule::open_paren);
 
-        let arg = Located::<RFunctionArg>::from_pair(get_next(&mut function_inner, Rule::function_arg))?;
+        let arg =
+            Located::<RFunctionArg>::from_pair(get_next(&mut function_inner, Rule::function_arg))?;
 
         _ = get_next(&mut function_inner, Rule::close_paren);
         assert!(function_inner.next() == None);

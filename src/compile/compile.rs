@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::pre_processing::{pre_processing::{Block, BlockItem, Contract, PushInner}, opcode::{PUSH0, PUSH2, PUSH32, PUSH1}};
+use crate::pre_processing::opcode::{PUSH0, PUSH1, PUSH2, PUSH32};
+use crate::pre_processing::pre_processing::{Block, BlockItem, Contract, PushInner};
 
-use super::{settings::{CompilerSettings, FillingPatern}, fillers::{fill_with_random, fill_with_pattern}};
+use super::fillers::{fill_with_pattern, fill_with_random};
+use super::settings::{CompilerSettings, FillingPatern};
 
 /// dumb compiler, will be improved later ;)
 pub fn compile_contracts(contracts: Vec<Contract>, settings: CompilerSettings) -> Bytes {
@@ -41,7 +43,11 @@ enum Hole {
     Size(SizeHole),
 }
 
-fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>, settings: &CompilerSettings) -> Bytes {
+fn compile_contract(
+    blocks: &Vec<Block>,
+    bytecodes: &HashMap<usize, Bytes>,
+    settings: &CompilerSettings,
+) -> Bytes {
     let mut res = BytesMut::new();
 
     let mut block_positions = HashMap::<usize, Vec<usize>>::new();
@@ -125,10 +131,12 @@ fn compile_contract(blocks: &Vec<Block>, bytecodes: &HashMap<usize, Bytes>, sett
 
             match &settings.filling_pattern {
                 FillingPatern::Random => fill_with_random(&mut res, bytes_to_add),
-                FillingPatern::Repeat(pattern) => fill_with_pattern(&mut res, pattern, bytes_to_add),
+                FillingPatern::Repeat(pattern) => {
+                    fill_with_pattern(&mut res, pattern, bytes_to_add)
+                },
             }
         }
-        
+
         block_positions.insert(block_index, pcs);
     }
 

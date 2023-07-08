@@ -60,7 +60,10 @@ impl Attribute {
         *self == Self::Keep
     }
 
-    pub fn from_r_attribute(input: &str, r_attribute: &Located<RAttribute>) -> Result<Self, pest::error::Error<Rule>> {
+    pub fn from_r_attribute(
+        input: &str,
+        r_attribute: &Located<RAttribute>,
+    ) -> Result<Self, pest::error::Error<Rule>> {
         let name = r_attribute.name_str();
         match name {
             "assume" => {
@@ -106,7 +109,7 @@ impl Attribute {
                 };
 
                 if is_assumable_opcode(op) {
-                    Ok(Self::Assume { op, v: format_bytes(&bytes) }) 
+                    Ok(Self::Assume { op, v: format_bytes(&bytes) })
                 } else {
                     Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"))
                 }
@@ -127,7 +130,7 @@ impl Attribute {
                         "Opcode name required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
                     ))
                 };
-    
+
                 let Some(op) = str_to_op(&var.as_str().to_lowercase()) else {
                     return Err(new_error_from_located(
                         input,
@@ -164,10 +167,7 @@ pub struct Attributes {
 
 impl Default for Attributes {
     fn default() -> Self {
-        Self {
-            assumes: HashMap::new(),
-            optimization: true,
-        }
+        Self { assumes: HashMap::new(), optimization: true }
     }
 }
 

@@ -1,8 +1,6 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::{
-    collections::{HashMap, HashSet},
-    hash::Hash,
-};
+use std::hash::Hash;
 
 use super::queue::IndexedVec;
 

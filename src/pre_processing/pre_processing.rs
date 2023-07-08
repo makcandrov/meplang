@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use bytes::Bytes;
 
 use crate::ast::*;
-use crate::parser::error::{new_error_from_located, new_generic_error, new_error_from_location};
+use crate::parser::error::{new_error_from_located, new_error_from_location, new_generic_error};
 use crate::parser::parser::Located;
 use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
@@ -11,7 +11,10 @@ use crate::pre_processing::dependencies::DepsGraph;
 use crate::pre_processing::remapping::remap_blocks;
 
 use super::attribute::Attribute;
-use super::block_flow::{BlockFlow, analyze_block_flow, BlockFlowItem, BlockFlowPush, BlockFlowPushInner, BlockFlowBlockRef};
+use super::block_flow::{
+    analyze_block_flow, BlockFlow, BlockFlowBlockRef, BlockFlowItem, BlockFlowPush,
+    BlockFlowPushInner,
+};
 use super::queue::DedupQueue;
 use super::remapping::remap_contracts;
 
@@ -42,7 +45,7 @@ pub struct Push {
 #[derive(Clone, Debug)]
 pub enum PushInner {
     Constant(Bytes),
-    BlockSize { index: usize, start: usize, end: usize},
+    BlockSize { index: usize, start: usize, end: usize },
     BlockPc { index: usize, line: usize },
 }
 
@@ -62,7 +65,11 @@ pub fn pre_process(
             if attribute.is_contract_attribute() {
                 contract_attributes[contract_index].apply(attribute);
             } else {
-                return Err(new_error_from_located(input, r_attribute, "Invalid contract attribute"));
+                return Err(new_error_from_located(
+                    input,
+                    r_attribute,
+                    "Invalid contract attribute",
+                ));
             }
         }
 
@@ -113,11 +120,14 @@ pub fn pre_process(
 
     for index in 0..r_file.0.len() {
         if contracts.get(&index).is_none() {
-            log::warn!("{}", new_error_from_located(
-                input,
-                r_file.0[index].inner(),
-                &format!("Unused contract `{}`", r_file.0[index].inner().name_str())
-            ));
+            log::warn!(
+                "{}",
+                new_error_from_located(
+                    input,
+                    r_file.0[index].inner(),
+                    &format!("Unused contract `{}`", r_file.0[index].inner().name_str())
+                )
+            );
         }
     }
 
@@ -171,23 +181,35 @@ pub fn pre_process_contract(
                         blocks_queue.insert_if_needed(block_index);
                     } else if attribute.is_main() {
                         if main_index.replace(block_index).is_some() {
-                            return Err(new_error_from_located(input, r_attribute, "A block is already marked as main."));
+                            return Err(new_error_from_located(
+                                input,
+                                r_attribute,
+                                "A block is already marked as main.",
+                            ));
                         }
                     } else {
                         block_attributes[block_index].push(attribute);
                     }
                 } else {
-                    return Err(new_error_from_located(input, r_attribute, "Invalid block attribute."));
+                    return Err(new_error_from_located(
+                        input,
+                        r_attribute,
+                        "Invalid block attribute.",
+                    ));
                 }
             } else {
                 if attribute.is_abstract_block_attribute() {
                     block_attributes[block_index].push(attribute);
                 } else {
-                    return Err(new_error_from_located(input, r_attribute, "Invalid abstract block attribute."));
+                    return Err(new_error_from_located(
+                        input,
+                        r_attribute,
+                        "Invalid abstract block attribute.",
+                    ));
                 }
             }
         }
-        
+
         let r_block = &r_block_with_attr.inner().inner;
         let block_name = r_block.name_str();
 
@@ -201,8 +223,12 @@ pub fn pre_process_contract(
                 &format!("Name `{}` already used", block_name),
             ));
         }
-        if block_name == "main" && main_index.replace(block_index).is_some(){
-            return Err(new_error_from_located(input, &r_block.name, "A block is already marked as main."));
+        if block_name == "main" && main_index.replace(block_index).is_some() {
+            return Err(new_error_from_located(
+                input,
+                &r_block.name,
+                "A block is already marked as main.",
+            ));
         }
     }
 
@@ -249,11 +275,17 @@ pub fn pre_process_contract(
 
     for block_index in 0..r_contract.blocks.len() {
         if blocks_flow.get(&block_index).is_none() {
-            log::warn!("{}", new_error_from_located(
-                input,
-                &r_contract.blocks[block_index],
-                &format!("Unused block `{}`", &r_contract.blocks[block_index].inner().name_str())
-            ));
+            log::warn!(
+                "{}",
+                new_error_from_located(
+                    input,
+                    &r_contract.blocks[block_index],
+                    &format!(
+                        "Unused block `{}`",
+                        &r_contract.blocks[block_index].inner().name_str()
+                    )
+                )
+            );
         }
     }
 
@@ -296,10 +328,13 @@ pub fn pre_process_contract(
         remapping.push(last_index);
     }
 
-    Ok((Contract {
-        blocks: remap_blocks(blocks, &remapping, &new_positions),
-        last: last_index.is_some(),
-    }, contract_dependencies))
+    Ok((
+        Contract {
+            blocks: remap_blocks(blocks, &remapping, &new_positions),
+            last: last_index.is_some(),
+        },
+        contract_dependencies,
+    ))
 }
 
 pub fn extract_constants(
@@ -346,13 +381,9 @@ pub struct BlockPosition {
     pub end: usize,
 }
 
-impl BlockPreProcessingContext{
+impl BlockPreProcessingContext {
     pub fn new_root(index: usize) -> Self {
-        Self {
-            root_index: index,
-            inside_abstract: false,
-            line_index: 0,
-        }
+        Self { root_index: index, inside_abstract: false, line_index: 0 }
     }
 
     pub fn next_context(&self, inside_abstract: bool, line_index: usize) -> Self {
@@ -387,26 +418,44 @@ fn pre_process_block(
     for block_flow_item in &block_flow.items {
         match block_flow_item {
             BlockFlowItem::Bytes(bytes) => items.push(BlockItem::Bytes(bytes.clone())),
-            BlockFlowItem::Contract(contract_index) => items.push(BlockItem::Contract(*contract_index)),
+            BlockFlowItem::Contract(contract_index) => {
+                items.push(BlockItem::Contract(*contract_index))
+            },
             BlockFlowItem::Push(BlockFlowPush { attributes, inner }) => {
                 current_attributes.apply_many(attributes.clone());
                 items.push(BlockItem::Push(Push {
                     attributes: current_attributes.clone(),
                     inner: match inner {
                         BlockFlowPushInner::Constant(bytes) => PushInner::Constant(bytes.clone()),
-                        BlockFlowPushInner::BlockPc(index) => PushInner::BlockPc { index: *index, line: 0 },
-                        BlockFlowPushInner::BlockSize(index) => PushInner::BlockSize { index: *index, start: 0, end: 0 },
-                    }
+                        BlockFlowPushInner::BlockPc(index) => {
+                            PushInner::BlockPc { index: *index, line: 0 }
+                        },
+                        BlockFlowPushInner::BlockSize(index) => {
+                            PushInner::BlockSize { index: *index, start: 0, end: 0 }
+                        },
+                    },
                 }));
             },
-            BlockFlowItem::BlockEsp(BlockFlowBlockRef { index: block_index, location, attributes }) => {
+            BlockFlowItem::BlockEsp(BlockFlowBlockRef {
+                index: block_index,
+                location,
+                attributes,
+            }) => {
                 current_attributes.apply_many(attributes.clone());
                 if !r_blocks[*block_index].inner().abstr {
-                    return Err(new_error_from_location(input, &location, "Use the `*` to refer to a non abstract block."));
+                    return Err(new_error_from_location(
+                        input,
+                        &location,
+                        "Use the `*` to refer to a non abstract block.",
+                    ));
                 }
 
                 if parents.contains(block_index) {
-                    return Err(new_error_from_location(input, &location, "Recursive block references unhandled"));
+                    return Err(new_error_from_location(
+                        input,
+                        &location,
+                        "Recursive block references unhandled",
+                    ));
                 }
 
                 parents.insert(*block_index);
@@ -420,28 +469,41 @@ fn pre_process_block(
                     current_attributes,
                     block_attributes,
                     unique_dereferences,
-                    new_positions
+                    new_positions,
                 )?;
                 parents.remove(&block_index);
                 items.append(&mut sub_items);
-                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
+                current_attributes
+                    .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
             },
-            BlockFlowItem::BlockStar(BlockFlowBlockRef { index: block_index, location, attributes }) => {
+            BlockFlowItem::BlockStar(BlockFlowBlockRef {
+                index: block_index,
+                location,
+                attributes,
+            }) => {
                 current_attributes.apply_many(attributes.clone());
                 if context.inside_abstract {
                     return Err(new_error_from_location(
                         input,
                         &location,
-                        "Cannot refer to non-abstract block inside an abstract block."
+                        "Cannot refer to non-abstract block inside an abstract block.",
                     ));
                 }
 
                 if r_blocks[*block_index].inner().abstr {
-                    return Err(new_error_from_location(input, &location, "Use the `&` to refer to an abstract block."));
+                    return Err(new_error_from_location(
+                        input,
+                        &location,
+                        "Use the `&` to refer to an abstract block.",
+                    ));
                 }
 
                 if unique_dereferences.contains(block_index) {
-                    return Err(new_error_from_location(input, &location, "This non-abtrsact block has already been dereferenced once."));
+                    return Err(new_error_from_location(
+                        input,
+                        &location,
+                        "This non-abtrsact block has already been dereferenced once.",
+                    ));
                 }
                 // println!("dereferencing {} inside {} (root {})" ,
                 //     r_blocks[*block_index].inner().name_str(),
@@ -451,7 +513,11 @@ fn pre_process_block(
                 unique_dereferences.insert(*block_index);
 
                 if parents.contains(block_index) {
-                    return Err(new_error_from_location(input, &location, "Recursive block references unhandled"));
+                    return Err(new_error_from_location(
+                        input,
+                        &location,
+                        "Recursive block references unhandled",
+                    ));
                 }
 
                 parents.insert(*block_index);
@@ -465,11 +531,12 @@ fn pre_process_block(
                     current_attributes,
                     block_attributes,
                     unique_dereferences,
-                    new_positions
+                    new_positions,
                 )?;
                 parents.remove(&block_index);
                 items.append(&mut sub_items);
-                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
+                current_attributes
+                    .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
             },
         }
     }
@@ -481,11 +548,14 @@ fn pre_process_block(
     //     context.line_index,
     //     context.line_index + items.len(),
     // );
-    new_positions.insert(index_to_process, BlockPosition {
-        root_index: context.root_index,
-        start: context.line_index,
-        end: context.line_index + items.len(),
-    });
+    new_positions.insert(
+        index_to_process,
+        BlockPosition {
+            root_index: context.root_index,
+            start: context.line_index,
+            end: context.line_index + items.len(),
+        },
+    );
 
     Ok(Block { items })
 }

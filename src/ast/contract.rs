@@ -32,7 +32,8 @@ impl FromPair for RContract {
 
         _ = get_next(&mut contract_decl_inner, Rule::contract_keyword);
 
-        let name = Located::<RVariable>::from_pair(get_next(&mut contract_decl_inner, Rule::variable))?;
+        let name =
+            Located::<RVariable>::from_pair(get_next(&mut contract_decl_inner, Rule::variable))?;
 
         _ = get_next(&mut contract_decl_inner, Rule::open_brace);
 
@@ -41,19 +42,17 @@ impl FromPair for RContract {
         while let Some(contract_item) = contract_decl_inner.next() {
             match contract_item.as_rule() {
                 Rule::block_decl_with_attr => {
-                    blocks.push(Located::<WithAttributes<Located<RBlock>>>::from_pair(contract_item)?);
-                }
+                    blocks.push(Located::<WithAttributes<Located<RBlock>>>::from_pair(
+                        contract_item,
+                    )?);
+                },
                 Rule::const_decl => {
                     constants.push(Located::<RConstant>::from_pair(contract_item)?);
-                }
+                },
                 Rule::close_brace => {
                     assert!(contract_decl_inner.next() == None);
-                    return Ok(Self {
-                        name,
-                        blocks,
-                        constants,
-                    });
-                }
+                    return Ok(Self { name, blocks, constants });
+                },
                 _ => unreachable!(),
             }
         }

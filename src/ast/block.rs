@@ -105,7 +105,8 @@ impl FromPair for RBlock {
             _ => unreachable!(),
         };
 
-        let name = Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
+        let name =
+            Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
 
         _ = get_next(&mut block_decl_inner, Rule::open_brace);
 
@@ -113,7 +114,9 @@ impl FromPair for RBlock {
         while let Some(block_item_with_attr) = block_decl_inner.next() {
             match block_item_with_attr.as_rule() {
                 Rule::block_item_with_attr => {
-                    items.push(Located::<WithAttributes<Located<RBlockItem>>>::from_pair(block_item_with_attr)?);
+                    items.push(Located::<WithAttributes<Located<RBlockItem>>>::from_pair(
+                        block_item_with_attr,
+                    )?);
                 },
                 Rule::close_brace => {
                     assert!(block_decl_inner.next() == None);

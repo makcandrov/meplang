@@ -30,10 +30,7 @@ impl<T: Eq + Hash + Clone> IndexedVec<T> {
         };
         let last_index = self.v.len() - 1;
         if index != last_index {
-            self.indexes.insert(
-                self.v.last().unwrap().clone(),
-                index
-            );
+            self.indexes.insert(self.v.last().unwrap().clone(), index);
             self.v.swap(index, last_index);
         }
         self.v.pop();

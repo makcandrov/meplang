@@ -1,5 +1,7 @@
 use crate::parser::parser::Rule;
-use pest::{error::ErrorVariant, iterators::Pair, Position, Span};
+use pest::error::ErrorVariant;
+use pest::iterators::Pair;
+use pest::{Position, Span};
 
 use super::parser::{Located, Location};
 

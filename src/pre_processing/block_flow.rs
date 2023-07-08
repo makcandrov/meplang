@@ -1,13 +1,13 @@
 use crate::ast::*;
-use crate::parser::{
-    error::new_error_from_located,
-    parser::{Located, Location, Rule},
-};
+use crate::parser::error::new_error_from_located;
+use crate::parser::parser::{Located, Location, Rule};
+
 use bytes::{BufMut, Bytes, BytesMut};
 use std::collections::{HashMap, HashSet};
 
 use super::queue::DedupQueue;
-use super::{attribute::Attribute, opcode::str_to_op};
+use super::attribute::Attribute;
+use super::opcode::str_to_op;
 
 #[derive(Clone, Debug)]
 pub struct BlockFlow {
@@ -245,12 +245,7 @@ pub fn analyze_block_flow(
         items.push(BlockFlowItem::Bytes(c_bytes.into()));
     }
 
-    Ok(BlockFlow {
-        items,
-        end_attributes: current_attributes,
-        strong_deps,
-        weak_deps,
-    })
+    Ok(BlockFlow { items, end_attributes: current_attributes, strong_deps, weak_deps })
 }
 
 pub fn append_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_bytes: &Bytes) {

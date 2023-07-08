@@ -66,7 +66,9 @@ impl From<RVariableWithField> for RVariableOrVariableWithField {
 }
 
 impl FromPair for RVariableOrVariableWithField {
-    fn from_pair(variable_or_variable_with_field: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(
+        variable_or_variable_with_field: Pair<Rule>,
+    ) -> Result<Self, pest::error::Error<Rule>> {
         assert!(variable_or_variable_with_field.as_rule() == Rule::variable_or_variable_with_field);
 
         map_unique_child(variable_or_variable_with_field, |child| match child.as_rule() {

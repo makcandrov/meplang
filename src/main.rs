@@ -1,4 +1,5 @@
-use compile::{file::compile_file, settings::CompilerSettings};
+use compile::file::compile_file;
+use compile::settings::CompilerSettings;
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
 use std::io::Write;
@@ -93,7 +94,7 @@ fn main() {
                             Err(err) => {
                                 log::error!("Unable to decode compiler settings: {}", err);
                                 return;
-                            }
+                            },
                         };
                         if settings.replace(decoded).is_some() {
                             log::error!("Compiler settings specified multiple times.");
@@ -118,7 +119,8 @@ fn main() {
                 return;
             };
 
-            match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default()) {
+            match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default())
+            {
                 Ok(result) => {
                     let result = format!("0x{}", hex::encode(result));
                     if let Some(output_file) = output_file {
