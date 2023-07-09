@@ -66,12 +66,12 @@ fn compile_contract(
     let blocks_len = blocks.len();
     for block_index in 0..blocks_len {
         let block = &blocks[block_index];
-        contract_artifacts.set_start(&block.name, res.len());
+        contract_artifacts.set_pc(&block.name, res.len());
 
         let mut pcs = Vec::with_capacity(block.items.len());
         for item in &block.items {
             for start_name in &item.start_names {
-                contract_artifacts.set_start(start_name, res.len());
+                contract_artifacts.set_pc(start_name, res.len());
             }
 
             pcs.push(res.len());
