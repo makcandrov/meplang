@@ -194,6 +194,7 @@ pub fn pre_process_contract(
             if !r_block_with_attr.inner().abstr {
                 if attribute.is_block_attribute() {
                     if attribute.is_last() {
+                        blocks_queue.insert_if_needed(block_index);
                         if last_index.replace(block_index).is_some() {
                             return Err(new_error_from_located(
                                 input,
