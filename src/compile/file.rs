@@ -1,8 +1,7 @@
-use bytes::Bytes;
-
 use crate::ast::RFile;
 use crate::pre_processing::pre_processing::pre_process;
 
+use super::artifacts::Artifacts;
 use super::compile::compile_contracts;
 use super::settings::CompilerSettings;
 
@@ -10,7 +9,7 @@ pub fn compile_file(
     path: &str,
     contract_name: &str,
     settings: CompilerSettings,
-) -> Result<Bytes, String> {
+) -> Result<Artifacts, String> {
     let input = match std::fs::read_to_string(path) {
         Ok(input) => input,
         Err(err) => return Err(format!("Could not open file `{}`: {}", path, err.to_string())),
@@ -23,8 +22,6 @@ pub fn compile_file(
         },
     };
 
-    // dbg!(&meplang_file);
-
     let pre_processed = match pre_process(&input, r_file, contract_name) {
         Ok(pre_processed) => pre_processed,
         Err(err) => {
@@ -32,9 +29,7 @@ pub fn compile_file(
         },
     };
 
-    // dbg!(&pre_processed);
+    let artifacts = compile_contracts(pre_processed, settings);
 
-    let compiled = compile_contracts(pre_processed, settings);
-
-    Ok(compiled)
+    Ok(artifacts)
 }

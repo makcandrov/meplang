@@ -100,7 +100,6 @@ fn main() {
                             log::error!("Compiler settings specified multiple times.");
                             return;
                         }
-                        dbg!(&settings);
                     },
                     _ => {
                         log::error!("Unexpected argument `{}`.", &arg);
@@ -121,10 +120,9 @@ fn main() {
 
             match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default())
             {
-                Ok(result) => {
-                    let result = format!("0x{}", hex::encode(result));
+                Ok(artifacts) => {
                     if let Some(output_file) = output_file {
-                        match std::fs::write(&output_file, result) {
+                        match std::fs::write(&output_file, serde_json::to_string_pretty(&artifacts).unwrap()) {
                             Ok(()) => {
                                 println!(
                                     "Contract `{}` bytecode written in the file `{}`.",
@@ -138,7 +136,7 @@ fn main() {
                             },
                         }
                     } else {
-                        println!("Contract `{}` bytecode: {}", contract, result);
+                        println!("Contract `{}` bytecode: {}", contract, format!("0x{}", hex::encode(artifacts.main_bytecode())));
                         return;
                     }
                 },
