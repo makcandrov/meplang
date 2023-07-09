@@ -1,20 +1,27 @@
 use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
 
 use bytes::Bytes;
 
-#[derive(Debug, Default, Clone)]
+use super::settings::{serialize_bytes, deserialize_bytes};
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Artifacts {
     pub main: String,
     pub contracts: HashMap<String, ContractArtifacts>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ContractArtifacts {
     pub blocks: HashMap<String, BlockArtifacts>,
+    #[serde(serialize_with = "serialize_bytes", deserialize_with = "deserialize_bytes")]
     pub bytecode: Bytes,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct BlockArtifacts {
     pub start: usize,
     pub size: usize,
