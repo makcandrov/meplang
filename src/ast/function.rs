@@ -2,14 +2,16 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::litteral::RHexLitteral;
+use super::RConcatenation;
+use super::literal::RHexLiteral;
 use super::variable::{RVariable, RVariableWithField};
 
 #[derive(Debug, Clone)]
 pub enum RFunctionArg {
     Variable(RVariable),
     VariableWithField(RVariableWithField),
-    HexLitteral(RHexLitteral),
+    VariablesConcat(RConcatenation),
+    HexLiteral(RHexLiteral),
 }
 
 impl From<RVariable> for RFunctionArg {
@@ -24,9 +26,15 @@ impl From<RVariableWithField> for RFunctionArg {
     }
 }
 
-impl From<RHexLitteral> for RFunctionArg {
-    fn from(value: RHexLitteral) -> Self {
-        Self::HexLitteral(value)
+impl From<RConcatenation> for RFunctionArg {
+    fn from(value: RConcatenation) -> Self {
+        Self::VariablesConcat(value)
+    }
+}
+
+impl From<RHexLiteral> for RFunctionArg {
+    fn from(value: RHexLiteral) -> Self {
+        Self::HexLiteral(value)
     }
 }
 
@@ -37,7 +45,8 @@ impl FromPair for RFunctionArg {
         map_unique_child(function_arg, |child| match child.as_rule() {
             Rule::variable => Ok(RVariable::from_pair(child)?.into()),
             Rule::variable_with_field => Ok(RVariableWithField::from_pair(child)?.into()),
-            Rule::hex_litteral => Ok(RHexLitteral::from_pair(child)?.into()),
+            Rule::concatenation => Ok(RConcatenation::from_pair(child)?.into()),
+            Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
             _ => unreachable!(),
         })
     }

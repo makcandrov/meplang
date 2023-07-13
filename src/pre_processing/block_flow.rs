@@ -79,8 +79,8 @@ pub fn analyze_block_flow(
         let r_item = r_item_with_attr.inner();
 
         match &r_item.inner {
-            RBlockItem::HexLitteral(hex_litteral) => {
-                append_or_create_bytes(&mut current_bytes, &hex_litteral.0);
+            RBlockItem::HexLiteral(hex_literal) => {
+                append_or_create_bytes(&mut current_bytes, &hex_literal.0);
                 continue;
             },
             RBlockItem::Variable(variable) => {
@@ -103,7 +103,7 @@ pub fn analyze_block_flow(
         }
 
         match &r_item.inner {
-            RBlockItem::HexLitteral(_) => unreachable!(),
+            RBlockItem::HexLiteral(_) => unreachable!(),
             RBlockItem::Variable(_) => unreachable!(),
             RBlockItem::BlockRef(RBlockRef::Star(variable)) => {
                 let block_name = variable.as_str();
@@ -184,8 +184,8 @@ pub fn analyze_block_flow(
                 };
 
                 let push = match &function.arg.inner {
-                    RFunctionArg::HexLitteral(hex_litteral) => {
-                        let Some(formatted) = Bytes32::from_bytes(&hex_litteral.0, push_right) else {
+                    RFunctionArg::HexLiteral(hex_literal) => {
+                        let Some(formatted) = Bytes32::from_bytes(&hex_literal.0, push_right) else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -200,7 +200,7 @@ pub fn analyze_block_flow(
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
-                                &format!("Invalid opcode `{}`.", variable.as_str()),
+                                &format!("Unknown argument `{}`.", variable.as_str()),
                             ));
                         };
 
@@ -259,6 +259,36 @@ pub fn analyze_block_flow(
                             },
                         }
                     },
+                    RFunctionArg::VariablesConcat(concat) => {
+                        let mut bytes = BytesMut::new();
+                        for variable in &concat.0 {
+                            let value = match &variable.inner {
+                                RVariableOrHexLiteral::Variable(variable) => {
+                                    let Some(constant_value) = constants.get(variable.as_str()) else {
+                                        return Err(new_error_from_located(
+                                            input,
+                                            &function.arg,
+                                            &format!("Unknown argument `{}`.", variable.as_str()),
+                                        ));
+                                    };
+                                    constant_value
+                                },
+                                RVariableOrHexLiteral::HexLiteral(hex_literal) => &hex_literal.0,
+                            };
+
+                            bytes.extend_from_slice(value);
+                        }
+
+                        let Some(formatted) = Bytes32::from_bytes(&bytes.into(), push_right) else {
+                            return Err(new_error_from_located(
+                                input,
+                                &function.arg,
+                                &format!("Push content exceeds 32 bytes."),
+                            ));
+                        };
+
+                        BlockFlowPushInner::Constant(formatted)
+                    }
                 };
 
                 items.push(BlockFlowItem::Push(BlockFlowPush {

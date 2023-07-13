@@ -6,6 +6,8 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::Located;
 use crate::parser::parser::Rule;
 
+use super::RHexLiteral;
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RVariable(pub String);
 
@@ -76,5 +78,65 @@ impl FromPair for RVariableOrVariableWithField {
             Rule::variable_with_field => Ok(RVariableWithField::from_pair(child)?.into()),
             _ => unreachable!(),
         })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RVariableOrHexLiteral {
+    Variable(RVariable),
+    HexLiteral(RHexLiteral),
+}
+
+impl From<RVariable> for RVariableOrHexLiteral {
+    fn from(variable: RVariable) -> Self {
+        Self::Variable(variable)
+    }
+}
+
+impl From<RHexLiteral> for RVariableOrHexLiteral {
+    fn from(hex_literal: RHexLiteral) -> Self {
+        Self::HexLiteral(hex_literal)
+    }
+}
+
+impl FromPair for RVariableOrHexLiteral {
+    fn from_pair(
+        variable_or_hex_literal: Pair<Rule>,
+    ) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(variable_or_hex_literal.as_rule() == Rule::variable_or_hex_literal);
+
+        map_unique_child(variable_or_hex_literal, |child| match child.as_rule() {
+            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
+            Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
+            _ => unreachable!(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RConcatenation(pub Vec<Located<RVariableOrHexLiteral>>);
+
+impl FromPair for RConcatenation {
+    fn from_pair(
+        variables_concat: Pair<Rule>,
+    ) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(variables_concat.as_rule() == Rule::concatenation);
+
+        let mut variables_concat_inner = variables_concat.into_inner();
+
+
+        let mut res = vec![
+            Located::<RVariableOrHexLiteral>::from_pair(get_next(&mut variables_concat_inner, Rule::variable_or_hex_literal))?
+        ];
+
+        while let Some(at) = variables_concat_inner.next() {
+            assert!(at.as_rule() == Rule::at);
+
+            res.push(
+                Located::<RVariableOrHexLiteral>::from_pair(get_next(&mut variables_concat_inner, Rule::variable_or_hex_literal))?
+            )
+        }
+
+        Ok(Self(res))
     }
 }

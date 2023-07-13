@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Hash, Eq, PartialEq)]
 pub struct Bytes32(pub [u8; 32]);
 
 impl Deref for Bytes32 {
@@ -16,6 +16,12 @@ impl Deref for Bytes32 {
 impl DerefMut for Bytes32 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+
+impl From<[u8; 32]> for Bytes32 {
+    fn from(value: [u8; 32]) -> Self {
+        Self(value)
     }
 }
 

@@ -3,7 +3,7 @@ use crate::parser::parser::{Located, Rule};
 use crate::types::bytes32::Bytes32;
 use std::collections::HashMap;
 
-use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLitteral};
+use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLiteral};
 
 use super::opcode::*;
 
@@ -82,20 +82,20 @@ impl Attribute {
                     ));
                 };
 
-                let RHexOrStringLitteral::RHexLitteral(hex_litteral) = &eq.value.inner else {
+                let RHexOrStringLiteral::RHexLiteral(hex_literal) = &eq.value.inner else {
                     return Err(new_error_from_located(
                         input,
                         &eq.value,
-                        "Expected hex litteral - ex: #[assume(msize = 0x20)]",
+                        "Expected hex literal - ex: #[assume(msize = 0x20)]",
                     ));
                 };
 
-                let bytes = hex_litteral.0.clone();
+                let bytes = hex_literal.0.clone();
                 if bytes.len() > 32 {
                     return Err(new_error_from_located(
                         input,
                         &eq.value,
-                        "Hexadecimal litteral must be less than 32 bytes",
+                        "Hexadecimal literal must be less than 32 bytes",
                     ));
                 }
 

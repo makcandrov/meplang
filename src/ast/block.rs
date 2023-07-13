@@ -4,7 +4,7 @@ use pest::iterators::Pair;
 
 use super::attribute::WithAttributes;
 use super::function::RFunction;
-use super::litteral::RHexLitteral;
+use super::literal::RHexLiteral;
 use super::variable::{RVariable, RVariableOrVariableWithField};
 
 #[derive(Debug, Clone)]
@@ -35,7 +35,7 @@ impl FromPair for RBlockRef {
 pub enum RBlockItem {
     Variable(RVariable),
     Function(RFunction),
-    HexLitteral(RHexLitteral),
+    HexLiteral(RHexLiteral),
     BlockRef(RBlockRef),
 }
 
@@ -51,9 +51,9 @@ impl From<RFunction> for RBlockItem {
     }
 }
 
-impl From<RHexLitteral> for RBlockItem {
-    fn from(value: RHexLitteral) -> Self {
-        Self::HexLitteral(value)
+impl From<RHexLiteral> for RBlockItem {
+    fn from(value: RHexLiteral) -> Self {
+        Self::HexLiteral(value)
     }
 }
 
@@ -70,7 +70,7 @@ impl FromPair for RBlockItem {
         map_unique_child(block_item, |child| match child.as_rule() {
             Rule::variable => Ok(RVariable::from_pair(child)?.into()),
             Rule::function => Ok(RFunction::from_pair(child)?.into()),
-            Rule::hex_litteral => Ok(RHexLitteral::from_pair(child)?.into()),
+            Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
             Rule::block_ref => Ok(RBlockRef::from_pair(child)?.into()),
             _ => unreachable!(),
         })
