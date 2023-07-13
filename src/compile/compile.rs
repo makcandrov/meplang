@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use bytes::{BufMut, Bytes, BytesMut};
 
 use crate::compile::artifacts::Artifacts;
-use crate::pre_processing::opcode::{push_length, PUSH0, PUSH1, PUSH2};
+use crate::pre_processing::opcode::{push_length, PUSH0, PUSH1, PUSH2, PUSH32};
 use crate::pre_processing::pre_processing::{Block, BlockItemInner, Contract, PushInner};
 
 use super::artifacts::ContractArtifacts;
@@ -97,7 +97,9 @@ fn compile_contract(
                                     res.put_u8(PUSH1);
                                     res.put_u8(0x00);
                                 } else {
-                                    res.put_u8(PUSH0 + (cst.len() as u8));
+                                    let push = PUSH0 + (cst.len() as u8);
+                                    assert!(push <= PUSH32);
+                                    res.put_u8(push);
                                     res.extend_from_slice(cst);
                                 }
                             }
