@@ -1,9 +1,9 @@
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use bytes::Bytes;
 
-use super::settings::{serialize_bytes, deserialize_bytes};
+use super::settings::{deserialize_bytes, serialize_bytes};
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]

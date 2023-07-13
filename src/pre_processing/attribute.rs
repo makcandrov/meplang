@@ -1,11 +1,10 @@
 use crate::parser::error::new_error_from_located;
 use crate::parser::parser::{Located, Rule};
-use bytes::Bytes;
+use crate::types::bytes32::Bytes32;
 use std::collections::HashMap;
 
-use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLitteral};
+use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLiteral};
 
-use super::block_flow::format_bytes;
 use super::opcode::*;
 
 const fn is_assumable_opcode(op: OpCode) -> bool {
@@ -19,7 +18,7 @@ const fn is_assumable_opcode(op: OpCode) -> bool {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Attribute {
-    Assume { op: u8, v: Bytes },
+    Assume { op: u8, v: Bytes32 },
     ClearAssume { op: u8 },
     Keep,
     Main,
@@ -83,20 +82,20 @@ impl Attribute {
                     ));
                 };
 
-                let RHexOrStringLitteral::RHexLitteral(hex_litteral) = &eq.value.inner else {
+                let RHexOrStringLiteral::RHexLiteral(hex_literal) = &eq.value.inner else {
                     return Err(new_error_from_located(
                         input,
                         &eq.value,
-                        "Expected hex litteral - ex: #[assume(msize = 0x20)]",
+                        "Expected hex literal - ex: #[assume(msize = 0x20)]",
                     ));
                 };
 
-                let bytes = hex_litteral.0.clone();
+                let bytes = hex_literal.0.clone();
                 if bytes.len() > 32 {
                     return Err(new_error_from_located(
                         input,
                         &eq.value,
-                        "Hexadecimal litteral must be less than 32 bytes",
+                        "Hexadecimal literal must be less than 32 bytes",
                     ));
                 }
 
@@ -109,7 +108,11 @@ impl Attribute {
                 };
 
                 if is_assumable_opcode(op) {
-                    Ok(Self::Assume { op, v: format_bytes(&bytes) })
+                    let Some(formatted) = Bytes32::from_bytes(&bytes, true) else {
+                        return Err(new_error_from_located(input, &eq.name, "Literal exceeds 32 bytes."));
+                    };
+
+                    Ok(Self::Assume { op, v: formatted })
                 } else {
                     Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"))
                 }
@@ -161,7 +164,7 @@ impl Attribute {
 
 #[derive(Debug, Clone)]
 pub struct Attributes {
-    pub assumes: HashMap<u8, Bytes>,
+    pub assumes: HashMap<u8, Bytes32>,
     pub optimization: bool,
 }
 

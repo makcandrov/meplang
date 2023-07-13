@@ -1,6 +1,7 @@
 use crate::ast::*;
 use crate::parser::error::new_error_from_located;
 use crate::parser::parser::{Located, Location, Rule};
+use crate::types::bytes32::Bytes32;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use std::collections::{HashMap, HashSet};
@@ -41,7 +42,7 @@ pub struct BlockFlowPush {
 
 #[derive(Clone, Debug)]
 pub enum BlockFlowPushInner {
-    Constant(Bytes),
+    Constant(Bytes32),
     BlockPc(usize),
     BlockSize(usize),
 }
@@ -78,18 +79,21 @@ pub fn analyze_block_flow(
         let r_item = r_item_with_attr.inner();
 
         match &r_item.inner {
-            RBlockItem::HexLitteral(hex_litteral) => {
-                append_or_create_bytes(&mut current_bytes, &hex_litteral.0);
+            RBlockItem::HexLiteral(hex_literal) => {
+                append_or_create_bytes(&mut current_bytes, &hex_literal.0);
                 continue;
             },
             RBlockItem::Variable(variable) => {
-                if let Some(op) = str_to_op(variable.as_str()) {
+                let variable_name = variable.as_str();
+                if let Some(op) = str_to_op(variable_name) {
                     push_or_create_bytes(&mut current_bytes, op);
+                } else if let Some(constant) = constants.get(variable_name) {
+                    append_or_create_bytes(&mut current_bytes, constant);
                 } else {
                     return Err(new_error_from_located(
                         input,
                         &r_item,
-                        &format!("Unknown opcode `{}`.", variable.as_str()),
+                        &format!("Unknown opcode or constant`{}`.", variable_name),
                     ));
                 }
                 continue;
@@ -102,11 +106,11 @@ pub fn analyze_block_flow(
         }
 
         match &r_item.inner {
-            RBlockItem::HexLitteral(_) => unreachable!(),
+            RBlockItem::HexLiteral(_) => unreachable!(),
             RBlockItem::Variable(_) => unreachable!(),
             RBlockItem::BlockRef(RBlockRef::Star(variable)) => {
                 let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(variable.as_str()) else {
+                let Some(block_index) = block_names.get(block_name) else {
                     return Err(new_error_from_located(
                         input,
                         r_item,
@@ -126,7 +130,7 @@ pub fn analyze_block_flow(
                 variable,
             ))) => {
                 let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(variable.as_str()) else {
+                let Some(block_index) = block_names.get(block_name) else {
                     return Err(new_error_from_located(
                         input,
                         r_item,
@@ -170,17 +174,21 @@ pub fn analyze_block_flow(
             RBlockItem::Function(function) => {
                 let function_name = function.name.as_str();
 
-                if function_name.to_lowercase().as_str() != "push" {
-                    return Err(new_error_from_located(
-                        input,
-                        &function.name,
-                        &format!("Unknown function `{}`.", function_name),
-                    ));
-                }
+                let push_right = match function_name.to_lowercase().as_str() {
+                    "push" | "rpush" => true,
+                    "lpush" => false,
+                    _ => {
+                        return Err(new_error_from_located(
+                            input,
+                            &function.name,
+                            &format!("Unknown function `{}`.", function_name),
+                        ));
+                    },
+                };
 
                 let push = match &function.arg.inner {
-                    RFunctionArg::HexLitteral(hex_litteral) => {
-                        let Some(formatted) = format_bytes_checked(&hex_litteral.0, 32) else {
+                    RFunctionArg::HexLiteral(hex_literal) => {
+                        let Some(formatted) = Bytes32::from_bytes(&hex_literal.0, push_right) else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -195,11 +203,11 @@ pub fn analyze_block_flow(
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
-                                &format!("Invalid opcode `{}`.", variable.as_str()),
+                                &format!("Unknown argument `{}`.", variable.as_str()),
                             ));
                         };
 
-                        let Some(formatted) = format_bytes_checked(constant_value, 32) else {
+                        let Some(formatted) = Bytes32::from_bytes(constant_value, push_right) else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -210,6 +218,14 @@ pub fn analyze_block_flow(
                         BlockFlowPushInner::Constant(formatted)
                     },
                     RFunctionArg::VariableWithField(variable_with_field) => {
+                        if !push_right {
+                            return Err(new_error_from_located(
+                                input,
+                                &variable_with_field.variable,
+                                &format!("Left push can only take constants as argument."),
+                            ));
+                        }
+
                         let field_name = variable_with_field.field.as_str();
                         let variable_name = variable_with_field.variable.as_str();
                         match field_name {
@@ -245,6 +261,36 @@ pub fn analyze_block_flow(
                                 ))
                             },
                         }
+                    },
+                    RFunctionArg::VariablesConcat(concat) => {
+                        let mut bytes = BytesMut::new();
+                        for variable in &concat.0 {
+                            let value = match &variable.inner {
+                                RVariableOrHexLiteral::Variable(variable) => {
+                                    let Some(constant_value) = constants.get(variable.as_str()) else {
+                                        return Err(new_error_from_located(
+                                            input,
+                                            &function.arg,
+                                            &format!("Unknown argument `{}`.", variable.as_str()),
+                                        ));
+                                    };
+                                    constant_value
+                                },
+                                RVariableOrHexLiteral::HexLiteral(hex_literal) => &hex_literal.0,
+                            };
+
+                            bytes.extend_from_slice(value);
+                        }
+
+                        let Some(formatted) = Bytes32::from_bytes(&bytes.into(), push_right) else {
+                            return Err(new_error_from_located(
+                                input,
+                                &function.arg,
+                                &format!("Push content exceeds 32 bytes."),
+                            ));
+                        };
+
+                        BlockFlowPushInner::Constant(formatted)
                     },
                 };
 
@@ -282,23 +328,9 @@ pub fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) 
     }
 }
 
-fn format_bytes_checked(bytes: &Bytes, max_size: usize) -> Option<Bytes> {
-    let formatted = format_bytes(bytes);
-    if formatted.len() > max_size {
-        None
-    } else {
-        Some(formatted)
+pub fn is_function_name(name: &str) -> bool {
+    match name.to_lowercase().as_str() {
+        "push" | "lpush" | "rpush" => true,
+        _ => false,
     }
-}
-
-pub fn format_bytes(bytes: &Bytes) -> Bytes {
-    let mut i = 0;
-    while i < bytes.len() && bytes[i] == 0x00 {
-        i += 1;
-    }
-    if i == bytes.len() {
-        return Bytes::new();
-    }
-
-    bytes.slice(i..bytes.len())
 }

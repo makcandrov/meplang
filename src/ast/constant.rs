@@ -1,4 +1,4 @@
-use crate::ast::litteral::RHexLitteral;
+use crate::ast::literal::RHexLiteral;
 use crate::parser::parser::{get_next, FromPair, Located, Rule};
 use pest::iterators::Pair;
 
@@ -7,7 +7,7 @@ use super::variable::RVariable;
 #[derive(Debug, Clone)]
 pub struct RConstant {
     pub name: Located<RVariable>,
-    pub value: Located<RHexLitteral>,
+    pub value: Located<RHexLiteral>,
 }
 
 impl RConstant {
@@ -29,10 +29,8 @@ impl FromPair for RConstant {
 
         let _ = get_next(&mut const_decl_inner, Rule::eq);
 
-        let value = Located::<RHexLitteral>::from_pair(get_next(
-            &mut const_decl_inner,
-            Rule::hex_litteral,
-        ))?;
+        let value =
+            Located::<RHexLiteral>::from_pair(get_next(&mut const_decl_inner, Rule::hex_literal))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::semicolon);
         assert!(const_decl_inner.next() == None);

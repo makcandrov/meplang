@@ -10,12 +10,14 @@ use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
 use crate::pre_processing::dependencies::DepsGraph;
 use crate::pre_processing::remapping::remap_blocks;
+use crate::types::bytes32::Bytes32;
 
 use super::attribute::Attribute;
 use super::block_flow::{
-    analyze_block_flow, BlockFlow, BlockFlowBlockRef, BlockFlowItem, BlockFlowPush,
-    BlockFlowPushInner,
+    analyze_block_flow, is_function_name, BlockFlow, BlockFlowBlockRef, BlockFlowItem,
+    BlockFlowPush, BlockFlowPushInner,
 };
+use super::opcode::str_to_op;
 use super::queue::DedupQueue;
 use super::remapping::remap_contracts;
 
@@ -68,7 +70,7 @@ pub struct Push {
 
 #[derive(Clone, Debug)]
 pub enum PushInner {
-    Constant(Bytes),
+    Constant(Bytes32),
     BlockSize { index: usize, start: usize, end: usize },
     BlockPc { index: usize, line: usize },
 }
@@ -383,7 +385,15 @@ pub fn extract_constants(
             return Err(new_error_from_located(
                 input,
                 &r_constant.name,
-                &format!("Name {} already used", r_constant.name.0),
+                &format!("Name {} already used.", r_constant.name.0),
+            ));
+        }
+
+        if str_to_op(constant_name).is_some() || is_function_name(constant_name) {
+            return Err(new_error_from_located(
+                input,
+                &r_constant.name,
+                &format!("Invalid constant name."),
             ));
         }
     }

@@ -4,13 +4,13 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::litteral::RHexOrStringLitteral;
+use super::literal::RHexOrStringLiteral;
 use super::variable::RVariable;
 
 #[derive(Debug, Clone)]
 pub struct REquality {
     pub name: Located<RVariable>,
-    pub value: Located<RHexOrStringLitteral>,
+    pub value: Located<RHexOrStringLiteral>,
 }
 
 impl REquality {
@@ -29,9 +29,9 @@ impl FromPair for REquality {
 
         _ = get_next(&mut inner, Rule::eq);
 
-        let value = Located::<RHexOrStringLitteral>::from_pair(get_next(
+        let value = Located::<RHexOrStringLiteral>::from_pair(get_next(
             &mut inner,
-            Rule::hex_or_string_litteral,
+            Rule::hex_or_string_literal,
         ))?;
 
         assert!(inner.next() == None);
@@ -43,7 +43,7 @@ impl FromPair for REquality {
 #[derive(Debug, Clone)]
 pub enum RAttributeArg {
     Variable(RVariable),
-    Litteral(RHexOrStringLitteral),
+    Literal(RHexOrStringLiteral),
     Equality(REquality),
 }
 
@@ -53,9 +53,9 @@ impl From<RVariable> for RAttributeArg {
     }
 }
 
-impl From<RHexOrStringLitteral> for RAttributeArg {
-    fn from(value: RHexOrStringLitteral) -> Self {
-        Self::Litteral(value)
+impl From<RHexOrStringLiteral> for RAttributeArg {
+    fn from(value: RHexOrStringLiteral) -> Self {
+        Self::Literal(value)
     }
 }
 
@@ -72,8 +72,8 @@ impl FromPair for RAttributeArg {
         map_unique_child(attribute_arg, |attribute_arg_inner| match attribute_arg_inner.as_rule() {
             Rule::equality => Ok(REquality::from_pair(attribute_arg_inner)?.into()),
             Rule::variable => Ok(RVariable::from_pair(attribute_arg_inner)?.into()),
-            Rule::hex_or_string_litteral => {
-                Ok(RHexOrStringLitteral::from_pair(attribute_arg_inner)?.into())
+            Rule::hex_or_string_literal => {
+                Ok(RHexOrStringLiteral::from_pair(attribute_arg_inner)?.into())
             },
             _ => unreachable!(),
         })
