@@ -84,15 +84,16 @@ pub fn analyze_block_flow(
                 continue;
             },
             RBlockItem::Variable(variable) => {
-                if let Some(op) = str_to_op(variable.as_str()) {
+                let variable_name = variable.as_str();
+                if let Some(op) = str_to_op(variable_name) {
                     push_or_create_bytes(&mut current_bytes, op);
-                } else if let Some(constant) = constants.get(variable.as_str()) {
+                } else if let Some(constant) = constants.get(variable_name) {
                     append_or_create_bytes(&mut current_bytes, constant);
                 } else {
                     return Err(new_error_from_located(
                         input,
                         &r_item,
-                        &format!("Unknown opcode or constant`{}`.", variable.as_str()),
+                        &format!("Unknown opcode or constant`{}`.", variable_name),
                     ));
                 }
                 continue;
@@ -109,7 +110,7 @@ pub fn analyze_block_flow(
             RBlockItem::Variable(_) => unreachable!(),
             RBlockItem::BlockRef(RBlockRef::Star(variable)) => {
                 let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(variable.as_str()) else {
+                let Some(block_index) = block_names.get(block_name) else {
                     return Err(new_error_from_located(
                         input,
                         r_item,
@@ -129,7 +130,7 @@ pub fn analyze_block_flow(
                 variable,
             ))) => {
                 let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(variable.as_str()) else {
+                let Some(block_index) = block_names.get(block_name) else {
                     return Err(new_error_from_located(
                         input,
                         r_item,
