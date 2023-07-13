@@ -21,7 +21,7 @@ impl FromPair for RHexLiteral {
         if hex_literal.as_str().len() % 2 != 0 {
             return Err(new_error_from_pair(
                 &hex_literal,
-                "Hex litterals must be odd size".to_owned(),
+                "Hex literals must be odd size.".to_owned(),
             ));
         }
 
@@ -55,7 +55,7 @@ impl FromPair for RStringLiteral {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RHexOrStringLiteral {
     RHexLiteral(RHexLiteral),
-    RStringLitteral(RStringLiteral),
+    RStringLiteral(RStringLiteral),
 }
 
 impl From<RHexLiteral> for RHexOrStringLiteral {
@@ -66,17 +66,17 @@ impl From<RHexLiteral> for RHexOrStringLiteral {
 
 impl From<RStringLiteral> for RHexOrStringLiteral {
     fn from(value: RStringLiteral) -> Self {
-        Self::RStringLitteral(value)
+        Self::RStringLiteral(value)
     }
 }
 
 impl FromPair for RHexOrStringLiteral {
-    fn from_pair(litteral: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(litteral.as_rule() == Rule::hex_or_string_literal);
+    fn from_pair(literal: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(literal.as_rule() == Rule::hex_or_string_literal);
 
-        map_unique_child(litteral, |litteral_inner| match litteral_inner.as_rule() {
-            Rule::hex_literal => Ok(RHexLiteral::from_pair(litteral_inner)?.into()),
-            Rule::string_literal => Ok(RStringLiteral::from_pair(litteral_inner)?.into()),
+        map_unique_child(literal, |literal_inner| match literal_inner.as_rule() {
+            Rule::hex_literal => Ok(RHexLiteral::from_pair(literal_inner)?.into()),
+            Rule::string_literal => Ok(RStringLiteral::from_pair(literal_inner)?.into()),
             _ => unreachable!(),
         })
     }
