@@ -86,11 +86,13 @@ pub fn analyze_block_flow(
             RBlockItem::Variable(variable) => {
                 if let Some(op) = str_to_op(variable.as_str()) {
                     push_or_create_bytes(&mut current_bytes, op);
+                } else if let Some(constant) = constants.get(variable.as_str()) {
+                    append_or_create_bytes(&mut current_bytes, constant);
                 } else {
                     return Err(new_error_from_located(
                         input,
                         &r_item,
-                        &format!("Unknown opcode `{}`.", variable.as_str()),
+                        &format!("Unknown opcode or constant`{}`.", variable.as_str()),
                     ));
                 }
                 continue;
