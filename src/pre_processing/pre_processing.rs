@@ -376,13 +376,7 @@ pub fn extract_constants(
     for r_constant in r_constants {
         let constant_name = r_constant.name_str();
         let value = r_constant.value.inner.clone().0;
-        if value.len() > 32 {
-            return Err(new_error_from_located(
-                input,
-                &r_constant.value,
-                &format!("Constants cannot exceed 32 bytes"),
-            ));
-        }
+
         if contract_names.contains_key(constant_name)
             || constants.insert(constant_name.to_owned(), value.clone()).is_some()
         {
@@ -393,6 +387,7 @@ pub fn extract_constants(
             ));
         }
     }
+
     Ok(constants)
 }
 

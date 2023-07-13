@@ -180,7 +180,15 @@ pub fn analyze_block_flow(
 
                 let push = match &function.arg.inner {
                     RFunctionArg::HexLitteral(hex_litteral) => {
-                        BlockFlowPushInner::Constant(format_bytes(&hex_litteral.0))
+                        let Some(formatted) = format_bytes_checked(&hex_litteral.0, 32) else {
+                            return Err(new_error_from_located(
+                                input,
+                                &function.arg,
+                                &format!("Push content exceeds 32 bytes."),
+                            ));
+                        };
+
+                        BlockFlowPushInner::Constant(formatted)
                     },
                     RFunctionArg::Variable(variable) => {
                         let Some(constant_value) = constants.get(variable.as_str()) else {
@@ -191,7 +199,15 @@ pub fn analyze_block_flow(
                             ));
                         };
 
-                        BlockFlowPushInner::Constant(format_bytes(constant_value))
+                        let Some(formatted) = format_bytes_checked(constant_value, 32) else {
+                            return Err(new_error_from_located(
+                                input,
+                                &function.arg,
+                                &format!("Push content exceeds 32 bytes."),
+                            ));
+                        };
+
+                        BlockFlowPushInner::Constant(formatted)
                     },
                     RFunctionArg::VariableWithField(variable_with_field) => {
                         let field_name = variable_with_field.field.as_str();
@@ -263,6 +279,15 @@ pub fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) 
         let mut c_bytes = BytesMut::new();
         c_bytes.put_u8(new_byte);
         current_bytes.replace(c_bytes);
+    }
+}
+
+fn format_bytes_checked(bytes: &Bytes, max_size: usize) -> Option<Bytes> {
+    let formatted = format_bytes(bytes);
+    if formatted.len() > max_size {
+        None
+    } else {
+        Some(formatted)
     }
 }
 
