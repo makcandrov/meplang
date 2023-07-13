@@ -45,7 +45,7 @@ impl Bytes32 {
     }
 
     pub fn is_zero(&self) -> bool {
-        self.leading_zeros() == 0
+        self.leading_zeros() == 32
     }
 
     pub fn right_content(&self) -> &[u8] {
