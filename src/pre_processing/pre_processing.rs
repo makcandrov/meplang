@@ -10,6 +10,7 @@ use crate::parser::parser::Rule;
 use crate::pre_processing::attribute::Attributes;
 use crate::pre_processing::dependencies::DepsGraph;
 use crate::pre_processing::remapping::remap_blocks;
+use crate::types::bytes32::Bytes32;
 
 use super::attribute::Attribute;
 use super::block_flow::{
@@ -68,7 +69,7 @@ pub struct Push {
 
 #[derive(Clone, Debug)]
 pub enum PushInner {
-    Constant(Bytes),
+    Constant(Bytes32),
     BlockSize { index: usize, start: usize, end: usize },
     BlockPc { index: usize, line: usize },
 }

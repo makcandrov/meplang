@@ -1,6 +1,7 @@
 use crate::ast::*;
 use crate::parser::error::new_error_from_located;
 use crate::parser::parser::{Located, Location, Rule};
+use crate::types::bytes32::Bytes32;
 
 use bytes::{BufMut, Bytes, BytesMut};
 use std::collections::{HashMap, HashSet};
@@ -41,7 +42,7 @@ pub struct BlockFlowPush {
 
 #[derive(Clone, Debug)]
 pub enum BlockFlowPushInner {
-    Constant(Bytes),
+    Constant(Bytes32),
     BlockPc(usize),
     BlockSize(usize),
 }
@@ -170,17 +171,21 @@ pub fn analyze_block_flow(
             RBlockItem::Function(function) => {
                 let function_name = function.name.as_str();
 
-                if function_name.to_lowercase().as_str() != "push" {
-                    return Err(new_error_from_located(
-                        input,
-                        &function.name,
-                        &format!("Unknown function `{}`.", function_name),
-                    ));
-                }
+                let push_right = match function_name.to_lowercase().as_str() {
+                    "push" | "rpush" => true,
+                    "lpush" => false,
+                    _ => {
+                        return Err(new_error_from_located(
+                            input,
+                            &function.name,
+                            &format!("Unknown function `{}`.", function_name),
+                        ));
+                    },
+                };
 
                 let push = match &function.arg.inner {
                     RFunctionArg::HexLitteral(hex_litteral) => {
-                        let Some(formatted) = format_bytes_checked(&hex_litteral.0, 32) else {
+                        let Some(formatted) = Bytes32::from_bytes(&hex_litteral.0, push_right) else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -199,7 +204,7 @@ pub fn analyze_block_flow(
                             ));
                         };
 
-                        let Some(formatted) = format_bytes_checked(constant_value, 32) else {
+                        let Some(formatted) = Bytes32::from_bytes(constant_value, push_right) else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -210,6 +215,14 @@ pub fn analyze_block_flow(
                         BlockFlowPushInner::Constant(formatted)
                     },
                     RFunctionArg::VariableWithField(variable_with_field) => {
+                        if !push_right {
+                            return Err(new_error_from_located(
+                                input,
+                                &variable_with_field.variable,
+                                &format!("Left push can only take constants as argument."),
+                            ));
+                        }
+
                         let field_name = variable_with_field.field.as_str();
                         let variable_name = variable_with_field.variable.as_str();
                         match field_name {
@@ -280,25 +293,4 @@ pub fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) 
         c_bytes.put_u8(new_byte);
         current_bytes.replace(c_bytes);
     }
-}
-
-fn format_bytes_checked(bytes: &Bytes, max_size: usize) -> Option<Bytes> {
-    let formatted = format_bytes(bytes);
-    if formatted.len() > max_size {
-        None
-    } else {
-        Some(formatted)
-    }
-}
-
-pub fn format_bytes(bytes: &Bytes) -> Bytes {
-    let mut i = 0;
-    while i < bytes.len() && bytes[i] == 0x00 {
-        i += 1;
-    }
-    if i == bytes.len() {
-        return Bytes::new();
-    }
-
-    bytes.slice(i..bytes.len())
 }

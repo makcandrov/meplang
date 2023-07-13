@@ -5,6 +5,7 @@ use bytes::{BufMut, Bytes, BytesMut};
 use crate::compile::artifacts::Artifacts;
 use crate::pre_processing::opcode::{push_length, PUSH0, PUSH1, PUSH2, PUSH32};
 use crate::pre_processing::pre_processing::{Block, BlockItemInner, Contract, PushInner};
+use crate::types::bytes32::Bytes32;
 
 use super::artifacts::ContractArtifacts;
 use super::fillers::{fill_with_pattern, fill_with_random};
@@ -81,26 +82,27 @@ fn compile_contract(
                     res.extend_from_slice(bytecodes.get(contract_index).unwrap())
                 },
                 BlockItemInner::Push(push) => {
-                    let assumes: HashMap<Bytes, u8> = if push.attributes.optimization {
+                    let assumes: HashMap<Bytes32, u8> = if push.attributes.optimization {
                         push.attributes.assumes.iter().map(|(x, y)| (y.clone(), *x)).collect()
                     } else {
                         HashMap::new()
                     };
                     match &push.inner {
                         PushInner::Constant(cst) => {
-                            if settings.push0 && cst.is_empty() {
+                            if settings.push0 && cst.is_zero() {
                                 res.put_u8(PUSH0);
                             } else if let Some(op) = assumes.get(cst) {
                                 res.put_u8(*op);
                             } else {
-                                if !settings.push0 && cst.is_empty() {
+                                if !settings.push0 && cst.is_zero() {
                                     res.put_u8(PUSH1);
                                     res.put_u8(0x00);
                                 } else {
-                                    let push = PUSH0 + (cst.len() as u8);
+                                    let content = cst.right_content();
+                                    let push = PUSH0 + (content.len() as u8);
                                     assert!(push <= PUSH32);
                                     res.put_u8(push);
-                                    res.extend_from_slice(cst);
+                                    res.extend_from_slice(content);
                                 }
                             }
                         },
