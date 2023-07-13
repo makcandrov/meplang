@@ -2,9 +2,9 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::RConcatenation;
 use super::literal::RHexLiteral;
 use super::variable::{RVariable, RVariableWithField};
+use super::RConcatenation;
 
 #[derive(Debug, Clone)]
 pub enum RFunctionArg {

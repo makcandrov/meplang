@@ -29,10 +29,8 @@ impl FromPair for RConstant {
 
         let _ = get_next(&mut const_decl_inner, Rule::eq);
 
-        let value = Located::<RHexLiteral>::from_pair(get_next(
-            &mut const_decl_inner,
-            Rule::hex_literal,
-        ))?;
+        let value =
+            Located::<RHexLiteral>::from_pair(get_next(&mut const_decl_inner, Rule::hex_literal))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::semicolon);
         assert!(const_decl_inner.next() == None);

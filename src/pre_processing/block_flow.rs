@@ -288,7 +288,7 @@ pub fn analyze_block_flow(
                         };
 
                         BlockFlowPushInner::Constant(formatted)
-                    }
+                    },
                 };
 
                 items.push(BlockFlowItem::Push(BlockFlowPush {
@@ -322,5 +322,12 @@ pub fn push_or_create_bytes(current_bytes: &mut Option<BytesMut>, new_byte: u8) 
         let mut c_bytes = BytesMut::new();
         c_bytes.put_u8(new_byte);
         current_bytes.replace(c_bytes);
+    }
+}
+
+pub fn is_function_name(name: &str) -> bool {
+    match name.to_lowercase().as_str() {
+        "push" | "lpush" | "rpush" => true,
+        _ => false,
     }
 }
