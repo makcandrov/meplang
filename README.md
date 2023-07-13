@@ -59,7 +59,7 @@ meplang compile -c HelloWorld -i hello_world.mep -o runtime.bytecode
 
 ## Deployment bytecode
 
-The compilation gives the runtime bytecode of the smart contract. To get the deployment contract, use an auxilliary contract, and compile it:
+The compilation gives the runtime bytecode of the smart contract. To get the deployment contract, use an auxiliary contract, and compile it:
 
 ```rust
 contract Constructor {
@@ -135,7 +135,7 @@ contract Contract {
     }
 }
 ```
-- A *non-abstract* block can be copied at most once inside another block using the opreator `*`. An *abstract* block can be copied as many times as desired inside other blocks using the operator `&`. Therefore, we cannot refer to the `pc` or to the `size` of an *abstract* block, because it may appear multiple times in the bytecode, and not be compiled the same every time.
+- A *non-abstract* block can be copied at most once inside another block using the operator `*`. An *abstract* block can be copied as many times as desired inside other blocks using the operator `&`. Therefore, we cannot refer to the `pc` or to the `size` of an *abstract* block, because it may appear multiple times in the bytecode, and not be compiled the same every time.
 
 ```rust
 contract Contract {
