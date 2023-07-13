@@ -100,7 +100,7 @@ fn compile_contract(
                                 } else {
                                     let content = cst.right_content();
                                     let push = PUSH0 + (content.len() as u8);
-                                    assert!(push <= PUSH32);
+                                    assert!(PUSH0 < push && push <= PUSH32);
                                     res.put_u8(push);
                                     res.extend_from_slice(content);
                                 }
