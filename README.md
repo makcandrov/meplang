@@ -51,10 +51,10 @@ Or the shortened version:
 meplang compile -c HelloWorld -i hello_world.mep
 ```
 
-This will print the runtime bytecode in the terminal. To save the output as in a file, use the argument `-o` or `-output`:
+This will print the runtime bytecode in the terminal. To export the compilation artifacts (including the runtime bytecode), use the argument `-o` or `-output`:
 
 ```sh
-meplang compile -c HelloWorld -i hello_world.mep -o runtime.bytecode
+meplang compile -c HelloWorld -i hello_world.mep -o hello_world.json
 ```
 
 ## Deployment bytecode
