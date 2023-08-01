@@ -4,8 +4,8 @@ version = "0.1.4"
 edition = "2021"
 
 [dependencies]
-pest = "2.6"
-pest_derive = "2.6"
+pest = "2.7"
+pest_derive = "2.7"
 bytes = "1.4.0"
 hex = "0.4.3"
 log = "0.4"
