@@ -14,5 +14,7 @@ contract Constructor {
 
 // the contract that will be deployed
 contract Deployed {
-    block main {}
+    block main {
+        // ...
+    }
 }

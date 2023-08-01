@@ -2,7 +2,7 @@
 
 Meplang is a low-level programming language that produces EVM bytecode. It is designed for developers who need full control over the control flow in their smart contracts.
 
-Meplang is a low-level language and is not meant for complex smart contract development. It is recommended to use more high-level languages like Solidity or Vyper for that.
+Meplang is a low-level language and is not meant for complex smart contract development. It is recommended to use more high-level languages like Solidity or Yul for that.
 
 **Please note that the work on Meplang is still in progress, and users should always verify that the output bytecode is as expected before deployment.**
 
@@ -78,7 +78,9 @@ contract Constructor {
 
 // the contract that will be deployed
 contract Deployed {
-    block main {}
+    block main {
+        // ...
+    }
 }
 ```
 
@@ -91,21 +93,26 @@ Compile the contract `Constructor` to get the deployment bytecode of the contrac
 - A **constant** is declared inside a contract using the keyword `const`. Constants can only be used inside a function `push` inside a block.
 
 ```rust
-contract Contract {
-    const balance_of_selector = 0x70a08231;
-    const weth_address = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+contract BalanceGetter {
+    const BALANCE_OF_SELECTOR = 0x70a08231;
+    const WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     #[assume(msize = 0x00)]
+    #[assume(returndatasize = 0x00)]
     block main {
-        push(balance_of_selector) push(0x) mstore // mem[0x1c..0x20] = 0x70a08231
+        push(BALANCE_OF_SELECTOR) push(0x) mstore // mem[0x1c..0x20] = 0x70a08231
         #[assume(msize = 0x20)]
         address push(0x20) mstore // mem[0x20..0x40] = address(this)
         #[assume(msize = 0x40)]
     
-        // mem[0x00..0x20] = weth.call{value: 0, gas: gas()}(mem[0x1c..0x20])
-        push(0x20) push(0x1c) push(0x24) push(0x) push(0x) push(weth_address) gas call
+        // mem[0x00..0x20] = WETH.call{value: 0, gas: gas()}(mem[0x1c..0x20])
+        //                 = WETH.balanceOf(address(this))
+        push(0x20) push(0x) push(0x24) push(0x1c) push(0x) push(WETH) gas call
+        #[assume(returndatasize = 0x20)]
 
-        // the contract's balance in weth is stored at mem[0x00..0x20]
+        // the contract's balance in WETH is stored at mem[0x00..0x20]
+
+        push(0x20) push(0x) return
     }
 }
 ```
@@ -114,11 +121,11 @@ contract Contract {
 
 ```rust
 contract Contract {
-    const magic_number = 0xff;
+    const MAGIC_NUMBER = 0xff;
 
     #[assume(msize = 0x00)]
     block main {
-        push(magic_number) push(0x) mstore
+        push(MAGIC_NUMBER) push(0x) mstore
         #[assume(msize = 0x20)]
 
         push(0x20) // can be replaced by the opcode `msize` during the compilation
@@ -142,8 +149,10 @@ contract Contract {
     #[assume(msize = 0x00)]
     block main {
         callvalue &shift_right_20_bytes // will most certainly be compiled `callvalue push1 0x20 shr`
+
         push(0x) push(0x) mstore
         #[assume(msize = 0x20)]
+
         callvalue &shift_right_20_bytes // will most certainly be compiled `callvalue msize shr` because we assumed msize = 0x20.
         *end_block
     }
@@ -159,7 +168,7 @@ contract Contract {
 }
 ```
 - Many **attributes** exist to guide the compiler. They are declared over a contract, a block, or a line inside a block using the syntax `#[ATTRIBUTE]`. The current list of existing attributes is:
-    -   `assume` to tell the compiler that *from this point*, an opcode will push on the stack a defined value. The compiler can then replace some `push` opcodes with these assumptions. 
+    - `assume` to tell the compiler that *from this point*, an opcode will push on the stack a defined value. The compiler can then replace some `push` opcodes with these assumptions. 
     - `clear_assume` to clear an assumption made previously.
     - `main` the main block can be marked with this attribute if it is not named `main`.
     - `last` to tell the compiler that the block must be placed at the end of the bytecode.
