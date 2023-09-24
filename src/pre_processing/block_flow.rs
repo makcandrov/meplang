@@ -114,7 +114,7 @@ pub fn analyze_block_flow(
                     return Err(new_error_from_located(
                         input,
                         r_item,
-                        &format!("Block `{}` not found in this contract.", block_name)
+                        &format!("Block `{}` not found in this contract.", block_name),
                     ));
                 };
 
@@ -134,7 +134,7 @@ pub fn analyze_block_flow(
                     return Err(new_error_from_located(
                         input,
                         r_item,
-                        &format!("Block `{}` not found in this contract.", block_name)
+                        &format!("Block `{}` not found in this contract.", block_name),
                     ));
                 };
 
@@ -188,7 +188,8 @@ pub fn analyze_block_flow(
 
                 let push = match &function.arg.inner {
                     RFunctionArg::HexLiteral(hex_literal) => {
-                        let Some(formatted) = Bytes32::from_bytes(&hex_literal.0, push_right) else {
+                        let Some(formatted) = Bytes32::from_bytes(&hex_literal.0, push_right)
+                        else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -207,7 +208,8 @@ pub fn analyze_block_flow(
                             ));
                         };
 
-                        let Some(formatted) = Bytes32::from_bytes(constant_value, push_right) else {
+                        let Some(formatted) = Bytes32::from_bytes(constant_value, push_right)
+                        else {
                             return Err(new_error_from_located(
                                 input,
                                 &function.arg,
@@ -267,7 +269,8 @@ pub fn analyze_block_flow(
                         for variable in &concat.0 {
                             let value = match &variable.inner {
                                 RVariableOrHexLiteral::Variable(variable) => {
-                                    let Some(constant_value) = constants.get(variable.as_str()) else {
+                                    let Some(constant_value) = constants.get(variable.as_str())
+                                    else {
                                         return Err(new_error_from_located(
                                             input,
                                             &function.arg,

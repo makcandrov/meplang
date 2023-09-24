@@ -115,9 +115,7 @@ pub fn pre_process(
     }
 
     let Some(main_index) = main_index else {
-        return Err(new_generic_error(
-            format!("Contract `{}` not found", contract_name)
-        ));
+        return Err(new_generic_error(format!("Contract `{}` not found", contract_name)));
     };
 
     let mut contracts = HashMap::<usize, Contract>::new();
@@ -271,7 +269,7 @@ pub fn pre_process_contract(
         return Err(new_error_from_located(
             input,
             &r_contract,
-            &format!("Block `main` not found in contract `{}`", r_contract.name_str())
+            &format!("Block `main` not found in contract `{}`", r_contract.name_str()),
         ));
     };
     blocks_queue.insert_if_needed(main_index);

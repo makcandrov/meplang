@@ -5,14 +5,14 @@ use bytes::Bytes;
 
 use super::settings::{deserialize_bytes, serialize_bytes};
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Artifacts {
     pub main: String,
     pub contracts: HashMap<String, ContractArtifacts>,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ContractArtifacts {
     pub blocks: HashMap<String, BlockArtifacts>,
@@ -20,7 +20,7 @@ pub struct ContractArtifacts {
     pub bytecode: Bytes,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct BlockArtifacts {
     pub pc: usize,
@@ -29,7 +29,11 @@ pub struct BlockArtifacts {
 
 impl Artifacts {
     pub fn main_bytecode(&self) -> &Bytes {
-        &self.contracts.get(&self.main).unwrap().bytecode
+        &self.main_artifacts().bytecode
+    }
+
+    pub fn main_artifacts(&self) -> &ContractArtifacts {
+        &self.contracts.get(&self.main).unwrap()
     }
 }
 

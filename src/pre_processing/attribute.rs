@@ -7,6 +7,7 @@ use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLiteral};
 
 use super::opcode::*;
 
+#[rustfmt::skip]
 const fn is_assumable_opcode(op: OpCode) -> bool {
     match op {
         ADDRESS | ORIGIN | CALLER | CALLVALUE | CALLDATASIZE | GASPRICE | RETURNDATASIZE |
@@ -71,7 +72,7 @@ impl Attribute {
                         input,
                         &r_attribute,
                         "Argument required after `assume` attribute - ex: #[assume(msize = 0x20)]",
-                    ))
+                    ));
                 };
 
                 let RAttributeArg::Equality(eq) = &arg.inner else {
@@ -109,7 +110,11 @@ impl Attribute {
 
                 if is_assumable_opcode(op) {
                     let Some(formatted) = Bytes32::from_bytes(&bytes, true) else {
-                        return Err(new_error_from_located(input, &eq.name, "Literal exceeds 32 bytes."));
+                        return Err(new_error_from_located(
+                            input,
+                            &eq.name,
+                            "Literal exceeds 32 bytes.",
+                        ));
                     };
 
                     Ok(Self::Assume { op, v: formatted })
@@ -123,7 +128,7 @@ impl Attribute {
                         input,
                         &r_attribute,
                         "Argument required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
-                    ))
+                    ));
                 };
 
                 let RAttributeArg::Variable(var) = &arg.inner else {
@@ -131,7 +136,7 @@ impl Attribute {
                         input,
                         &r_attribute,
                         "Opcode name required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
-                    ))
+                    ));
                 };
 
                 let Some(op) = str_to_op(&var.as_str().to_lowercase()) else {

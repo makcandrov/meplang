@@ -15,7 +15,7 @@ impl RFile {
     pub fn new(code: String) -> Result<Self, pest::error::Error<Rule>> {
         let mut pairs = MeplangParser::parse(Rule::file, &code)?;
         let Some(file) = pairs.next() else {
-            return Err(new_generic_error("invalid file".to_owned()))
+            return Err(new_generic_error("invalid file".to_owned()));
         };
         if pairs.next() != None {
             return Err(new_generic_error("invalid file".to_owned()));
