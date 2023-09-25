@@ -51,33 +51,3 @@ impl FromPair for RStringLiteral {
         }))
     }
 }
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum RHexOrStringLiteral {
-    RHexLiteral(RHexLiteral),
-    RStringLiteral(RStringLiteral),
-}
-
-impl From<RHexLiteral> for RHexOrStringLiteral {
-    fn from(value: RHexLiteral) -> Self {
-        Self::RHexLiteral(value)
-    }
-}
-
-impl From<RStringLiteral> for RHexOrStringLiteral {
-    fn from(value: RStringLiteral) -> Self {
-        Self::RStringLiteral(value)
-    }
-}
-
-impl FromPair for RHexOrStringLiteral {
-    fn from_pair(literal: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(literal.as_rule() == Rule::hex_or_string_literal);
-
-        map_unique_child(literal, |literal_inner| match literal_inner.as_rule() {
-            Rule::hex_literal => Ok(RHexLiteral::from_pair(literal_inner)?.into()),
-            Rule::string_literal => Ok(RStringLiteral::from_pair(literal_inner)?.into()),
-            _ => unreachable!(),
-        })
-    }
-}
