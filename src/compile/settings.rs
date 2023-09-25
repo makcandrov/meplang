@@ -25,6 +25,12 @@ impl Default for CompilerSettings {
     }
 }
 
+impl CompilerSettings {
+    pub fn add_variable(&mut self, name: &str, value: Bytes) {
+        self.variables.insert(name.to_owned(), value);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub enum FillingPatern {

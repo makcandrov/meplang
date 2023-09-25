@@ -1,15 +1,9 @@
 use std::io::Write;
 
-use compile::file::compile_file;
-use compile::settings::CompilerSettings;
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
 
-mod ast;
-mod compile;
-mod parser;
-mod pre_processing;
-mod types;
+use meplang::*;
 
 fn init_env_logger() {
     env_logger::builder()
