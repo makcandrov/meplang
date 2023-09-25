@@ -36,7 +36,7 @@ attribute_equality = { variable ~ eq ~ attribute_equality_right }
 
 attribute_arg = { attribute_equality | variable | string_literal }
 function_arg = { variable_with_field | hex_literal | compile_variable | concatenation | variable }
-const_arg = {hex_literal | compile_variable}
+const_arg = { hex_literal | compile_variable }
 
 attribute = {
 	"#[" ~ variable ~ 
@@ -53,7 +53,7 @@ function = ${
 }
 
 block_ref_star = { variable }
-block_ref_esp = { variable | variable_with_field}
+block_ref_esp = { variable_with_field | variable }
 block_ref = { (star ~ block_ref_star) | (esp ~ block_ref_esp) }
 
 block_item = ${

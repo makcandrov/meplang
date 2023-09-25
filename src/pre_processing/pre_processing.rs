@@ -180,7 +180,7 @@ pub fn pre_process_contract(
 ) -> Result<(Contract, HashSet<usize>), pest::error::Error<Rule>> {
     let r_contract = &r_contract_with_attr.inner.inner;
 
-    let constants = extract_constants(input, &r_contract.constants, contract_names)?;
+    let constants = extract_constants(input, &r_contract.constants, contract_names, compile_variables)?;
 
     let mut block_attributes = vec![Vec::<Attribute>::new(); r_contract.blocks.len()];
 
@@ -374,12 +374,21 @@ pub fn extract_constants(
     input: &str,
     r_constants: &Vec<Located<RConstant>>,
     contract_names: &HashMap<String, usize>,
+    compile_variables: &HashMap<String, Bytes>,
 ) -> Result<HashMap<String, Bytes>, pest::error::Error<Rule>> {
     let mut constants = HashMap::<String, Bytes>::new();
 
     for r_constant in r_constants {
         let constant_name = r_constant.name_str();
-        let value = r_constant.value.inner.clone().0;
+
+        let value = match &r_constant.value.inner {
+            RConstantArg::HexLiteral(hex_literal) => hex_literal.0.clone(),
+            RConstantArg::CompileVariable(compile_variable) => get_compile_variable_value(
+                input,
+                &compile_variable,
+                compile_variables
+            )?.clone(),
+        };
 
         if contract_names.contains_key(constant_name)
             || constants.insert(constant_name.to_owned(), value.clone()).is_some()
