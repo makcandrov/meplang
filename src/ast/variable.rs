@@ -50,7 +50,7 @@ impl FromPair for RVariableWithField {
 }
 
 #[derive(Debug, Clone)]
-pub struct RCompileVariable(pub RVariable);
+pub struct RCompileVariable(pub Located<RVariable>);
 
 impl FromPair for RCompileVariable {
     fn from_pair(compile_variable: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
@@ -60,7 +60,7 @@ impl FromPair for RCompileVariable {
 
         _ = get_next(&mut compile_var_inner, Rule::dol);
 
-        let res = RVariable::from_pair(get_next(&mut compile_var_inner, Rule::variable))?;
+        let res = Located::<RVariable>::from_pair(get_next(&mut compile_var_inner, Rule::variable))?;
 
         _ = get_next(&mut compile_var_inner, Rule::dol);
 

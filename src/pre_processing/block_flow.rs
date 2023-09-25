@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::attribute::Attribute;
 use super::opcode::str_to_op;
+use super::pre_processing::get_compile_variable_value;
 use super::queue::DedupQueue;
 
 #[derive(Clone, Debug)]
@@ -54,6 +55,7 @@ pub fn analyze_block_flow(
     contract_names: &HashMap<String, usize>,
     block_names: &HashMap<String, usize>,
     contract_dependencies: &mut HashSet<usize>,
+    compile_variables: &HashMap<String, Bytes>,
 ) -> Result<BlockFlow, pest::error::Error<Rule>> {
     // log::info!("Analyzing flow block {}", r_block_with_attr.inner().name_str());
 
@@ -68,7 +70,7 @@ pub fn analyze_block_flow(
 
     for r_item_with_attr in &r_block.items {
         for r_attribute in &r_item_with_attr.attributes {
-            let attribute = Attribute::from_r_attribute(input, r_attribute)?;
+            let attribute = Attribute::from_r_attribute(input, r_attribute, compile_variables)?;
             if attribute.is_block_item_attribute() {
                 current_attributes.push(attribute);
             } else {
@@ -78,27 +80,33 @@ pub fn analyze_block_flow(
 
         let r_item = r_item_with_attr.inner();
 
-        match &r_item.inner {
-            RBlockItem::HexLiteral(hex_literal) => {
-                append_or_create_bytes(&mut current_bytes, &hex_literal.0);
-                continue;
-            },
-            RBlockItem::Variable(variable) => {
-                let variable_name = variable.as_str();
-                if let Some(op) = str_to_op(variable_name) {
-                    push_or_create_bytes(&mut current_bytes, op);
-                } else if let Some(constant) = constants.get(variable_name) {
-                    append_or_create_bytes(&mut current_bytes, constant);
-                } else {
-                    return Err(new_error_from_located(
-                        input,
-                        &r_item,
-                        &format!("Unknown opcode or constant`{}`.", variable_name),
-                    ));
-                }
-                continue;
-            },
-            _ => (),
+        if let RBlockItem::HexAlias(hex_alias) = &r_item.inner {
+            match hex_alias {
+                RHexAlias::HexLiteral(hex_literal) => {
+                    append_or_create_bytes(&mut current_bytes, &hex_literal.0);
+                },
+                RHexAlias::Variable(variable) => {
+                    let variable_name = variable.as_str();
+                    if let Some(op) = str_to_op(variable_name) {
+                        push_or_create_bytes(&mut current_bytes, op);
+                    } else if let Some(constant) = constants.get(variable_name) {
+                        append_or_create_bytes(&mut current_bytes, constant);
+                    } else {
+                        return Err(new_error_from_located(
+                            input,
+                            &r_item,
+                            &format!("Unknown opcode or constant`{}`.", variable_name),
+                        ));
+                    }
+                },
+                RHexAlias::CompileVariable(compile_variable) => {
+                    append_or_create_bytes(
+                        &mut current_bytes,
+                        get_compile_variable_value(input, compile_variable, compile_variables)?,
+                    );
+                },
+            }
+            continue;
         }
 
         if let Some(c_bytes) = current_bytes.take() {
@@ -106,9 +114,8 @@ pub fn analyze_block_flow(
         }
 
         match &r_item.inner {
-            RBlockItem::HexLiteral(_) => unreachable!(),
-            RBlockItem::Variable(_) => unreachable!(),
-            RBlockItem::BlockRef(RBlockRef::Star(variable)) => {
+            RBlockItem::HexAlias(_) => unreachable!(),
+            RBlockItem::BlockRef(RBlockRef::Star(RBlockRefStar::Variable(variable))) => {
                 let block_name = variable.as_str();
                 let Some(block_index) = block_names.get(block_name) else {
                     return Err(new_error_from_located(
@@ -126,50 +133,50 @@ pub fn analyze_block_flow(
                 }));
                 current_attributes = Vec::new();
             },
-            RBlockItem::BlockRef(RBlockRef::Esp(RVariableOrVariableWithField::Variable(
-                variable,
-            ))) => {
-                let block_name = variable.as_str();
-                let Some(block_index) = block_names.get(block_name) else {
-                    return Err(new_error_from_located(
-                        input,
-                        r_item,
-                        &format!("Block `{}` not found in this contract.", block_name),
-                    ));
-                };
+            RBlockItem::BlockRef(RBlockRef::Esp(block_ref_esp)) => {
+                match block_ref_esp {
+                    RBlockRefEsp::Variable(variable) => {
+                        let block_name = variable.as_str();
+                        let Some(block_index) = block_names.get(block_name) else {
+                            return Err(new_error_from_located(
+                                input,
+                                r_item,
+                                &format!("Block `{}` not found in this contract.", block_name),
+                            ));
+                        };
 
-                strong_deps.insert_if_needed(*block_index);
-                items.push(BlockFlowItem::BlockEsp(BlockFlowBlockRef {
-                    index: *block_index,
-                    location: r_item.location.clone(),
-                    attributes: current_attributes,
-                }));
-                current_attributes = Vec::new();
-            },
-            RBlockItem::BlockRef(RBlockRef::Esp(
-                RVariableOrVariableWithField::VariableWithField(variable_with_field),
-            )) => {
-                let field_name = variable_with_field.field.as_str();
-                if field_name != "code" {
-                    return Err(new_error_from_located(
-                        input,
-                        &variable_with_field.field,
-                        &format!("Unknown field {}.", field_name),
-                    ));
+                        strong_deps.insert_if_needed(*block_index);
+                        items.push(BlockFlowItem::BlockEsp(BlockFlowBlockRef {
+                            index: *block_index,
+                            location: r_item.location.clone(),
+                            attributes: current_attributes,
+                        }));
+                        current_attributes = Vec::new();
+                    },
+                    RBlockRefEsp::VariableWithField(variable_with_field) => {
+                        let field_name = variable_with_field.field.as_str();
+                        if field_name != "code" {
+                            return Err(new_error_from_located(
+                                input,
+                                &variable_with_field.field,
+                                &format!("Unknown field {}.", field_name),
+                            ));
+                        }
+
+                        let variable_name = variable_with_field.variable.as_str();
+
+                        let Some(contract_index) = contract_names.get(variable_name) else {
+                            return Err(new_error_from_located(
+                                input,
+                                &variable_with_field.variable,
+                                &format!("Contract `{}` not found.", variable_name),
+                            ));
+                        };
+
+                        items.push(BlockFlowItem::Contract(*contract_index));
+                        contract_dependencies.insert(*contract_index);
+                    }
                 }
-
-                let variable_name = variable_with_field.variable.as_str();
-
-                let Some(contract_index) = contract_names.get(variable_name) else {
-                    return Err(new_error_from_located(
-                        input,
-                        &variable_with_field.variable,
-                        &format!("Contract `{}` not found.", variable_name),
-                    ));
-                };
-
-                items.push(BlockFlowItem::Contract(*contract_index));
-                contract_dependencies.insert(*contract_index);
             },
             RBlockItem::Function(function) => {
                 let function_name = function.name.as_str();
@@ -268,7 +275,7 @@ pub fn analyze_block_flow(
                         let mut bytes = BytesMut::new();
                         for variable in &concat.0 {
                             let value = match &variable.inner {
-                                RVariableOrHexLiteral::Variable(variable) => {
+                                RHexAlias::Variable(variable) => {
                                     let Some(constant_value) = constants.get(variable.as_str())
                                     else {
                                         return Err(new_error_from_located(
@@ -279,7 +286,10 @@ pub fn analyze_block_flow(
                                     };
                                     constant_value
                                 },
-                                RVariableOrHexLiteral::HexLiteral(hex_literal) => &hex_literal.0,
+                                RHexAlias::HexLiteral(hex_literal) => &hex_literal.0,
+                                RHexAlias::CompileVariable(compile_variable) => {
+                                    get_compile_variable_value(input, compile_variable, compile_variables)?
+                                },
                             };
 
                             bytes.extend_from_slice(value);

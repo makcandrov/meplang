@@ -1,11 +1,14 @@
+use bytes::Bytes;
+
 use crate::parser::error::new_error_from_located;
 use crate::parser::parser::{Located, Rule};
 use crate::types::bytes32::Bytes32;
 use std::collections::HashMap;
 
-use crate::ast::{RAttribute, RAttributeArg, RHexOrStringLiteral};
+use crate::ast::{RAttribute, RAttributeArg, RAttributeEqualityRight};
 
 use super::opcode::*;
+use super::pre_processing::get_compile_variable_value;
 
 #[rustfmt::skip]
 const fn is_assumable_opcode(op: OpCode) -> bool {
@@ -63,6 +66,7 @@ impl Attribute {
     pub fn from_r_attribute(
         input: &str,
         r_attribute: &Located<RAttribute>,
+        compile_variables: &HashMap<String, Bytes>,
     ) -> Result<Self, pest::error::Error<Rule>> {
         let name = r_attribute.name_str();
         match name {
@@ -75,7 +79,7 @@ impl Attribute {
                     ));
                 };
 
-                let RAttributeArg::Equality(eq) = &arg.inner else {
+                let RAttributeArg::AttributeEquality(eq) = &arg.inner else {
                     return Err(new_error_from_located(
                         input,
                         &r_attribute,
@@ -83,15 +87,18 @@ impl Attribute {
                     ));
                 };
 
-                let RHexOrStringLiteral::RHexLiteral(hex_literal) = &eq.value.inner else {
-                    return Err(new_error_from_located(
+                let bytes = match &eq.value.inner {
+                    RAttributeEqualityRight::HexLiteral(hex_literal) => hex_literal.0.clone(),
+                    RAttributeEqualityRight::CompileVariable(compile_variable) => {
+                        get_compile_variable_value(input, compile_variable, compile_variables)?.clone()
+                    },
+                    _ => return Err(new_error_from_located(
                         input,
                         &eq.value,
-                        "Expected hex literal - ex: #[assume(msize = 0x20)]",
-                    ));
+                        "Expected: \n hex literal - ex: #[assume(msize = 0x20)] \n or compile variable - ex: #[assume(chainid = $CHAINID$)]",
+                    )),
                 };
 
-                let bytes = hex_literal.0.clone();
                 if bytes.len() > 32 {
                     return Err(new_error_from_located(
                         input,

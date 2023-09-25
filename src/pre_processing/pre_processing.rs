@@ -79,6 +79,7 @@ pub fn pre_process(
     input: &str,
     r_file: RFile,
     contract_name: &str,
+    compile_variables: &HashMap<String, Bytes>,
 ) -> Result<Vec<Contract>, pest::error::Error<Rule>> {
     let mut main_index: Option<usize> = None;
     let mut contract_names = HashMap::<String, usize>::new();
@@ -87,7 +88,7 @@ pub fn pre_process(
     for contract_index in 0..r_file.0.len() {
         let r_contract_with_attr = &r_file.0[contract_index];
         for r_attribute in &r_contract_with_attr.attributes {
-            let attribute = Attribute::from_r_attribute(input, r_attribute)?;
+            let attribute = Attribute::from_r_attribute(input, r_attribute, compile_variables)?;
             if attribute.is_contract_attribute() {
                 contract_attributes[contract_index].apply(attribute);
             } else {
@@ -132,6 +133,7 @@ pub fn pre_process(
             &r_file.0[index_to_process],
             &contract_attributes[index_to_process],
             &contract_names,
+            compile_variables,
         )?;
 
         for dependency in dependencies {
@@ -174,6 +176,7 @@ pub fn pre_process_contract(
     r_contract_with_attr: &Located<WithAttributes<Located<RContract>>>,
     default_attributes: &Attributes,
     contract_names: &HashMap<String, usize>,
+    compile_variables: &HashMap<String, Bytes>,
 ) -> Result<(Contract, HashSet<usize>), pest::error::Error<Rule>> {
     let r_contract = &r_contract_with_attr.inner.inner;
 
@@ -190,7 +193,7 @@ pub fn pre_process_contract(
     for block_index in 0..r_contract.blocks.len() {
         let r_block_with_attr = &r_contract.blocks[block_index];
         for r_attribute in &r_block_with_attr.attributes {
-            let attribute = Attribute::from_r_attribute(input, r_attribute)?;
+            let attribute = Attribute::from_r_attribute(input, r_attribute, compile_variables)?;
             if !r_block_with_attr.inner().abstr {
                 if attribute.is_block_attribute() {
                     if attribute.is_last() {
@@ -287,6 +290,7 @@ pub fn pre_process_contract(
             &contract_names,
             &block_names,
             &mut contract_dependencies,
+            compile_variables,
         )?;
 
         for strong_dep in block.strong_deps.as_vec() {
@@ -598,4 +602,20 @@ fn pre_process_block(
     );
 
     Ok(Block { items, name: r_blocks[index_to_process].name_str().to_owned() })
+}
+
+pub fn get_compile_variable_value<'a>(
+    input: &'_ str,
+    compile_variable: &'_ RCompileVariable,
+    compile_variables: &'a HashMap<String, Bytes>,
+) -> Result<&'a Bytes, pest::error::Error<Rule>> {
+    let name = compile_variable.as_str();
+    let Some(bytes) = compile_variables.get(name) else {
+        return Err(new_error_from_located(
+            input,
+            &compile_variable.0,
+            &format!("Missing compile time variable {name}. Please specify it in the compiler settings."),
+        ));
+    };
+    Ok(bytes)
 }
