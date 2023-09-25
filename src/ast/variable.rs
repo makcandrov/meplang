@@ -50,69 +50,70 @@ impl FromPair for RVariableWithField {
 }
 
 #[derive(Debug, Clone)]
-pub enum RVariableOrVariableWithField {
-    Variable(RVariable),
-    VariableWithField(RVariableWithField),
-}
+pub struct RCompileVariable(pub Located<RVariable>);
 
-impl From<RVariable> for RVariableOrVariableWithField {
-    fn from(value: RVariable) -> Self {
-        Self::Variable(value)
+impl FromPair for RCompileVariable {
+    fn from_pair(compile_variable: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(compile_variable.as_rule() == Rule::compile_variable);
+
+        let mut compile_var_inner = compile_variable.into_inner();
+
+        _ = get_next(&mut compile_var_inner, Rule::dol);
+
+        let res = Located::<RVariable>::from_pair(get_next(&mut compile_var_inner, Rule::variable))?;
+
+        _ = get_next(&mut compile_var_inner, Rule::dol);
+
+        Ok(Self(res))
     }
 }
 
-impl From<RVariableWithField> for RVariableOrVariableWithField {
-    fn from(value: RVariableWithField) -> Self {
-        Self::VariableWithField(value)
-    }
-}
-
-impl FromPair for RVariableOrVariableWithField {
-    fn from_pair(
-        variable_or_variable_with_field: Pair<Rule>,
-    ) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(variable_or_variable_with_field.as_rule() == Rule::variable_or_variable_with_field);
-
-        map_unique_child(variable_or_variable_with_field, |child| match child.as_rule() {
-            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
-            Rule::variable_with_field => Ok(RVariableWithField::from_pair(child)?.into()),
-            _ => unreachable!(),
-        })
+impl RCompileVariable {
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
     }
 }
 
 #[derive(Debug, Clone)]
-pub enum RVariableOrHexLiteral {
-    Variable(RVariable),
+pub enum RHexAlias {
     HexLiteral(RHexLiteral),
+    Variable(RVariable),
+    CompileVariable(RCompileVariable),
 }
 
-impl From<RVariable> for RVariableOrHexLiteral {
-    fn from(variable: RVariable) -> Self {
-        Self::Variable(variable)
-    }
-}
-
-impl From<RHexLiteral> for RVariableOrHexLiteral {
+impl From<RHexLiteral> for RHexAlias {
     fn from(hex_literal: RHexLiteral) -> Self {
         Self::HexLiteral(hex_literal)
     }
 }
 
-impl FromPair for RVariableOrHexLiteral {
-    fn from_pair(variable_or_hex_literal: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(variable_or_hex_literal.as_rule() == Rule::variable_or_hex_literal);
+impl From<RVariable> for RHexAlias {
+    fn from(variable: RVariable) -> Self {
+        Self::Variable(variable)
+    }
+}
 
-        map_unique_child(variable_or_hex_literal, |child| match child.as_rule() {
-            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
+impl From<RCompileVariable> for RHexAlias {
+    fn from(compile_variable: RCompileVariable) -> Self {
+        Self::CompileVariable(compile_variable)
+    }
+}
+
+impl FromPair for RHexAlias {
+    fn from_pair(hex_alias: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(hex_alias.as_rule() == Rule::hex_alias);
+
+        map_unique_child(hex_alias, |child| match child.as_rule() {
             Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
+            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
+            Rule::compile_variable => Ok(RCompileVariable::from_pair(child)?.into()),
             _ => unreachable!(),
         })
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct RConcatenation(pub Vec<Located<RVariableOrHexLiteral>>);
+pub struct RConcatenation(pub Vec<Located<RHexAlias>>);
 
 impl FromPair for RConcatenation {
     fn from_pair(variables_concat: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
@@ -120,17 +121,17 @@ impl FromPair for RConcatenation {
 
         let mut variables_concat_inner = variables_concat.into_inner();
 
-        let mut res = vec![Located::<RVariableOrHexLiteral>::from_pair(get_next(
+        let mut res = vec![Located::<RHexAlias>::from_pair(get_next(
             &mut variables_concat_inner,
-            Rule::variable_or_hex_literal,
+            Rule::hex_alias,
         ))?];
 
         while let Some(at) = variables_concat_inner.next() {
             assert!(at.as_rule() == Rule::at);
 
-            res.push(Located::<RVariableOrHexLiteral>::from_pair(get_next(
+            res.push(Located::<RHexAlias>::from_pair(get_next(
                 &mut variables_concat_inner,
-                Rule::variable_or_hex_literal,
+                Rule::hex_alias,
             ))?)
         }
 

@@ -1,13 +1,44 @@
 use crate::ast::literal::RHexLiteral;
-use crate::parser::parser::{get_next, FromPair, Located, Rule};
+use crate::parser::parser::{get_next, FromPair, Located, Rule, map_unique_child};
 use pest::iterators::Pair;
 
+use super::RCompileVariable;
 use super::variable::RVariable;
+
+#[derive(Debug, Clone)]
+pub enum RConstantArg {
+    HexLiteral(RHexLiteral),
+    CompileVariable(RCompileVariable),
+}
+
+impl From<RHexLiteral> for RConstantArg {
+    fn from(hex_literal: RHexLiteral) -> Self {
+        Self::HexLiteral(hex_literal)
+    }
+}
+
+impl From<RCompileVariable> for RConstantArg {
+    fn from(compile_variable: RCompileVariable) -> Self {
+        Self::CompileVariable(compile_variable)
+    }
+}
+
+impl FromPair for RConstantArg {
+    fn from_pair(constant_arg: Pair<Rule>) -> Result<RConstantArg, pest::error::Error<Rule>> {
+        assert!(constant_arg.as_rule() == Rule::const_arg);
+
+        map_unique_child(constant_arg, |child| match child.as_rule() {
+            Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
+            Rule::compile_variable => Ok(RCompileVariable::from_pair(child)?.into()),
+            _ => unreachable!(),
+        })
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct RConstant {
     pub name: Located<RVariable>,
-    pub value: Located<RHexLiteral>,
+    pub value: Located<RConstantArg>,
 }
 
 impl RConstant {
@@ -30,7 +61,7 @@ impl FromPair for RConstant {
         let _ = get_next(&mut const_decl_inner, Rule::eq);
 
         let value =
-            Located::<RHexLiteral>::from_pair(get_next(&mut const_decl_inner, Rule::hex_literal))?;
+            Located::<RConstantArg>::from_pair(get_next(&mut const_decl_inner, Rule::const_arg))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::semicolon);
         assert!(const_decl_inner.next() == None);

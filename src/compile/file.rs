@@ -22,7 +22,7 @@ pub fn compile_file(
         },
     };
 
-    let pre_processed = match pre_process(&input, r_file, contract_name) {
+    let pre_processed = match pre_process(&input, r_file, contract_name, &settings.variables) {
         Ok(pre_processed) => pre_processed,
         Err(err) => {
             return Err(format!("Pre-processing failed:\n{}", err));

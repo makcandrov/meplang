@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use bytes::Bytes;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -8,11 +10,17 @@ pub struct CompilerSettings {
     pub push0: bool,
     #[serde(default)]
     pub filling_pattern: FillingPatern,
+    #[serde(serialize_with="serialize_variables", deserialize_with="deserialize_variables")]
+    pub variables: HashMap<String, Bytes>,
 }
 
 impl Default for CompilerSettings {
     fn default() -> Self {
-        Self { push0: true, filling_pattern: FillingPatern::default() }
+        Self {
+            push0: true,
+            filling_pattern: FillingPatern::default(),
+            variables: HashMap::default(),
+        }
     }
 }
 
@@ -38,7 +46,7 @@ where
     s.serialize_str(&format!("0x{}", hex::encode(x.as_ref())))
 }
 
-pub fn deserialize_bytes<'de, D>(d: D) -> Result<bytes::Bytes, D::Error>
+pub fn deserialize_bytes<'de, D>(d: D) -> Result<Bytes, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -50,6 +58,36 @@ where
     }
     .map(Into::into)
     .map_err(|e| serde::de::Error::custom(e.to_string()))
+}
+
+pub fn serialize_variables<S>(x: &HashMap<String, Bytes>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut map = s.serialize_map(Some(x.len()))?;
+    for (k, v) in x.iter() {
+        map.serialize_entry(k, &format!("0x{}", hex::encode(v)))?;
+    }
+    map.end()
+}
+
+pub fn deserialize_variables<'de, D>(d: D) -> Result<HashMap<String, Bytes>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let des: HashMap<String, String> = Deserialize::deserialize(d)?;
+    let mut res = HashMap::<String, Bytes>::with_capacity(des.len());
+    for (k, v) in des {
+        let value = if let Some(v) = v.strip_prefix("0x") {
+            hex::decode(v)
+        } else {
+            hex::decode(&v)
+        }
+        .map(Into::into)
+        .map_err(|e| serde::de::Error::custom(e.to_string()))?;
+        res.insert(k, value);
+    }
+    Ok(res)
 }
 
 #[cfg(test)]

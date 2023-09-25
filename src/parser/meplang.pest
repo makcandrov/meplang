@@ -11,31 +11,32 @@ close_brace = { "}" }
 star = { "*" }
 esp = { "&" }
 at = { "@" }
+dol = { "$" }
 
 string_inner = ${ (!"\"" ~ ANY)* }
 
 string_literal = @{ "\"" ~ string_inner ~ "\"" }
 hex_literal = @{"0x" ~ HEX_DIGIT * ~ !ASCII_ALPHANUMERIC }
 
-hex_or_string_literal = { string_literal | hex_literal }
-
 variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 variable_with_field = ${ variable ~ dot ~ variable }
-variable_or_variable_with_field = { variable_with_field | variable }
+compile_variable = ${ dol ~ variable ~ dol }
 
-variable_or_hex_literal = { hex_literal | variable }
+hex_alias = { hex_literal | variable | compile_variable }
 
-concatenation = { variable_or_hex_literal ~ (WHITESPACE* ~ at ~ WHITESPACE* ~ variable_or_hex_literal)+ }
+concatenation = { hex_alias ~ (WHITESPACE* ~ at ~ WHITESPACE* ~ hex_alias)+ }
 
 const_keyword = @{ "const" ~ &WHITESPACE }
 block_keyword = @{ "block" ~ &WHITESPACE }
 contract_keyword = @{ "contract" ~ &WHITESPACE }
 abstract_keyword = @{ "abstract" ~ &WHITESPACE }
 
-equality = { variable ~ eq ~ hex_or_string_literal }
+attribute_equality_right = { hex_literal | compile_variable | string_literal }
+attribute_equality = { variable ~ eq ~ attribute_equality_right }
 
-attribute_arg = { equality | variable | hex_or_string_literal }
-function_arg = { variable_with_field | hex_literal | concatenation | variable }
+attribute_arg = { attribute_equality | variable | string_literal }
+function_arg = { variable_with_field | concatenation | hex_alias }
+const_arg = { hex_literal | compile_variable }
 
 attribute = {
 	"#[" ~ variable ~ 
@@ -43,7 +44,7 @@ attribute = {
     ~ "]"
 }
 
-const_decl = { const_keyword ~ variable ~ eq ~ hex_literal ~ semicolon }
+const_decl = { const_keyword ~ variable ~ eq ~ const_arg ~ semicolon }
 
 function = ${
 	variable ~ WHITESPACE* ~ open_paren
@@ -51,13 +52,14 @@ function = ${
     close_paren
 }
 
-block_ref = { (star ~ variable) | (esp ~ variable_or_variable_with_field) }
+block_ref_star = { variable }
+block_ref_esp = { variable_with_field | variable }
+block_ref = { (star ~ block_ref_star) | (esp ~ block_ref_esp) }
 
 block_item = ${
-	hex_literal |
-	block_ref |
 	function |
-	variable ~ !(WHITESPACE* ~ open_paren)
+	hex_alias |
+	block_ref
 }
 
 block_item_with_attr = { attribute* ~ block_item }

@@ -2,15 +2,67 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
+use super::RHexAlias;
 use super::attribute::WithAttributes;
 use super::function::RFunction;
-use super::literal::RHexLiteral;
-use super::variable::{RVariable, RVariableOrVariableWithField};
+use super::variable::{RVariable, RVariableWithField};
+
+#[derive(Debug, Clone)]
+pub enum RBlockRefStar {
+    Variable(RVariable),
+}
+
+impl From<RVariable> for RBlockRefStar {
+    fn from(variable: RVariable) -> Self {
+        Self::Variable(variable)
+    }
+}
+
+impl FromPair for RBlockRefStar {
+    fn from_pair(block_ref_star: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(block_ref_star.as_rule() == Rule::block_ref_star);
+
+        map_unique_child(block_ref_star, |child| match child.as_rule() {
+            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
+            _ => unreachable!(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RBlockRefEsp {
+    Variable(RVariable),
+    VariableWithField(RVariableWithField),
+}
+
+impl From<RVariable> for RBlockRefEsp {
+    fn from(variable: RVariable) -> Self {
+        Self::Variable(variable)
+    }
+}
+
+impl From<RVariableWithField> for RBlockRefEsp {
+    fn from(variable_with_field: RVariableWithField) -> Self {
+        Self::VariableWithField(variable_with_field)
+    }
+}
+
+impl FromPair for RBlockRefEsp {
+    fn from_pair(block_ref_esp: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(block_ref_esp.as_rule() == Rule::block_ref_esp);
+
+        map_unique_child(block_ref_esp, |child| match child.as_rule() {
+            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
+            Rule::variable_with_field => Ok(RVariableWithField::from_pair(child)?.into()),
+            _ => unreachable!(),
+        })
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum RBlockRef {
-    Star(RVariable),
-    Esp(RVariableOrVariableWithField),
+    Star(RBlockRefStar),
+    Esp(RBlockRefEsp),
 }
 
 impl FromPair for RBlockRef {
@@ -20,8 +72,8 @@ impl FromPair for RBlockRef {
         let mut inner = block_ref.into_inner();
 
         let res = match inner.next().unwrap().as_rule() {
-            Rule::star => Self::Star(RVariable::from_pair(inner.next().unwrap())?),
-            Rule::esp => Self::Esp(RVariableOrVariableWithField::from_pair(inner.next().unwrap())?),
+            Rule::star => Self::Star(RBlockRefStar::from_pair(inner.next().unwrap())?),
+            Rule::esp => Self::Esp(RBlockRefEsp::from_pair(inner.next().unwrap())?),
             _ => unreachable!(),
         };
 
@@ -33,33 +85,26 @@ impl FromPair for RBlockRef {
 
 #[derive(Debug, Clone)]
 pub enum RBlockItem {
-    Variable(RVariable),
     Function(RFunction),
-    HexLiteral(RHexLiteral),
+    HexAlias(RHexAlias),
     BlockRef(RBlockRef),
 }
 
-impl From<RVariable> for RBlockItem {
-    fn from(value: RVariable) -> Self {
-        Self::Variable(value)
-    }
-}
-
 impl From<RFunction> for RBlockItem {
-    fn from(value: RFunction) -> Self {
-        Self::Function(value)
+    fn from(function: RFunction) -> Self {
+        Self::Function(function)
     }
 }
 
-impl From<RHexLiteral> for RBlockItem {
-    fn from(value: RHexLiteral) -> Self {
-        Self::HexLiteral(value)
+impl From<RHexAlias> for RBlockItem {
+    fn from(hex_alias: RHexAlias) -> Self {
+        Self::HexAlias(hex_alias)
     }
 }
 
 impl From<RBlockRef> for RBlockItem {
-    fn from(value: RBlockRef) -> Self {
-        Self::BlockRef(value)
+    fn from(block_ref: RBlockRef) -> Self {
+        Self::BlockRef(block_ref)
     }
 }
 
@@ -68,9 +113,8 @@ impl FromPair for RBlockItem {
         assert!(block_item.as_rule() == Rule::block_item);
 
         map_unique_child(block_item, |child| match child.as_rule() {
-            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
             Rule::function => Ok(RFunction::from_pair(child)?.into()),
-            Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
+            Rule::hex_alias => Ok(RHexAlias::from_pair(child)?.into()),
             Rule::block_ref => Ok(RBlockRef::from_pair(child)?.into()),
             _ => unreachable!(),
         })

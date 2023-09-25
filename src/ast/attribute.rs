@@ -4,34 +4,72 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::literal::RHexOrStringLiteral;
+use super::{RStringLiteral, RHexLiteral, RCompileVariable};
 use super::variable::RVariable;
 
 #[derive(Debug, Clone)]
-pub struct REquality {
-    pub name: Located<RVariable>,
-    pub value: Located<RHexOrStringLiteral>,
+pub enum RAttributeEqualityRight {
+    HexLiteral(RHexLiteral),
+    CompileVariable(RCompileVariable),
+    StringLiteral(RStringLiteral),
 }
 
-impl REquality {
+impl From<RHexLiteral> for RAttributeEqualityRight {
+    fn from(hex_literal: RHexLiteral) -> Self {
+        Self::HexLiteral(hex_literal)
+    }
+}
+
+impl From<RCompileVariable> for RAttributeEqualityRight {
+    fn from(compile_variable: RCompileVariable) -> Self {
+        Self::CompileVariable(compile_variable)
+    }
+}
+
+impl From<RStringLiteral> for RAttributeEqualityRight {
+    fn from(string_literal: RStringLiteral) -> Self {
+        Self::StringLiteral(string_literal)
+    }
+}
+
+impl FromPair for RAttributeEqualityRight {
+    fn from_pair(attribute_equality_right: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(attribute_equality_right.as_rule() == Rule::attribute_equality_right);
+
+        map_unique_child(attribute_equality_right, |inner| match inner.as_rule() {
+            Rule::hex_literal => Ok(RHexLiteral::from_pair(inner)?.into()),
+            Rule::compile_variable => Ok(RCompileVariable::from_pair(inner)?.into()),
+            Rule::string_literal => Ok(RStringLiteral::from_pair(inner)?.into()),
+            _ => unreachable!(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RAttributeEquality {
+    pub name: Located<RVariable>,
+    pub value: Located<RAttributeEqualityRight>,
+}
+
+impl RAttributeEquality {
     pub fn name_str(&self) -> &str {
         self.name.as_str()
     }
 }
 
-impl FromPair for REquality {
-    fn from_pair(equality: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
-        assert!(equality.as_rule() == Rule::equality);
+impl FromPair for RAttributeEquality {
+    fn from_pair(attribute_equality: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+        assert!(attribute_equality.as_rule() == Rule::attribute_equality);
 
-        let mut inner = equality.into_inner();
+        let mut inner = attribute_equality.into_inner();
 
         let name = Located::<RVariable>::from_pair(get_next(&mut inner, Rule::variable))?;
 
         _ = get_next(&mut inner, Rule::eq);
 
-        let value = Located::<RHexOrStringLiteral>::from_pair(get_next(
+        let value = Located::<RAttributeEqualityRight>::from_pair(get_next(
             &mut inner,
-            Rule::hex_or_string_literal,
+            Rule::attribute_equality_right,
         ))?;
 
         assert!(inner.next() == None);
@@ -42,26 +80,27 @@ impl FromPair for REquality {
 
 #[derive(Debug, Clone)]
 pub enum RAttributeArg {
+    AttributeEquality(RAttributeEquality),
     Variable(RVariable),
-    Literal(RHexOrStringLiteral),
-    Equality(REquality),
+    StringLiteral(RStringLiteral),
+}
+
+impl From<RAttributeEquality> for RAttributeArg {
+    fn from(attribute_equality: RAttributeEquality) -> Self {
+        Self::AttributeEquality(attribute_equality)
+    }
 }
 
 impl From<RVariable> for RAttributeArg {
-    fn from(value: RVariable) -> Self {
-        Self::Variable(value)
+    fn from(variable: RVariable) -> Self {
+        Self::Variable(variable)
     }
 }
 
-impl From<RHexOrStringLiteral> for RAttributeArg {
-    fn from(value: RHexOrStringLiteral) -> Self {
-        Self::Literal(value)
-    }
-}
 
-impl From<REquality> for RAttributeArg {
-    fn from(value: REquality) -> Self {
-        Self::Equality(value)
+impl From<RStringLiteral> for RAttributeArg {
+    fn from(string_literal: RStringLiteral) -> Self {
+        Self::StringLiteral(string_literal)
     }
 }
 
@@ -69,11 +108,11 @@ impl FromPair for RAttributeArg {
     fn from_pair(attribute_arg: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
         assert!(attribute_arg.as_rule() == Rule::attribute_arg);
 
-        map_unique_child(attribute_arg, |attribute_arg_inner| match attribute_arg_inner.as_rule() {
-            Rule::equality => Ok(REquality::from_pair(attribute_arg_inner)?.into()),
-            Rule::variable => Ok(RVariable::from_pair(attribute_arg_inner)?.into()),
-            Rule::hex_or_string_literal => {
-                Ok(RHexOrStringLiteral::from_pair(attribute_arg_inner)?.into())
+        map_unique_child(attribute_arg, |inner| match inner.as_rule() {
+            Rule::attribute_equality => Ok(RAttributeEquality::from_pair(inner)?.into()),
+            Rule::variable => Ok(RVariable::from_pair(inner)?.into()),
+            Rule::string_literal => {
+                Ok(RStringLiteral::from_pair(inner)?.into())
             },
             _ => unreachable!(),
         })
