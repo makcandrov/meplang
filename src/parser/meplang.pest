@@ -1,91 +1,81 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
-COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)* }
+COMMENT    = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)* }
 
-dot = { "." }
-semicolon = { ";" }
-eq = { "=" }
-open_paren = { "(" }
+dot         = { "." }
+semicolon   = { ";" }
+eq          = { "=" }
+open_paren  = { "(" }
 close_paren = { ")" }
-open_brace = { "{" }
+open_brace  = { "{" }
 close_brace = { "}" }
-star = { "*" }
-esp = { "&" }
-at = { "@" }
-dol = { "$" }
+star        = { "*" }
+esp         = { "&" }
+at          = { "@" }
+dol         = { "$" }
 
 string_inner = ${ (!"\"" ~ ANY)* }
 
 string_literal = @{ "\"" ~ string_inner ~ "\"" }
-hex_literal = @{"0x" ~ HEX_DIGIT * ~ !ASCII_ALPHANUMERIC }
+hex_literal    = @{ "0x" ~ HEX_DIGIT* ~ !ASCII_ALPHANUMERIC }
 
-variable = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
+variable            = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 variable_with_field = ${ variable ~ dot ~ variable }
-compile_variable = ${ dol ~ variable ~ dol }
+compile_variable    = ${ dol ~ variable ~ dol }
 
 hex_alias = { hex_literal | variable | compile_variable }
 
 concatenation = { hex_alias ~ (WHITESPACE* ~ at ~ WHITESPACE* ~ hex_alias)+ }
 
-const_keyword = @{ "const" ~ &WHITESPACE }
-block_keyword = @{ "block" ~ &WHITESPACE }
+const_keyword    = @{ "const" ~ &WHITESPACE }
+block_keyword    = @{ "block" ~ &WHITESPACE }
 contract_keyword = @{ "contract" ~ &WHITESPACE }
 abstract_keyword = @{ "abstract" ~ &WHITESPACE }
 
 attribute_equality_right = { hex_literal | compile_variable | string_literal }
-attribute_equality = { variable ~ eq ~ attribute_equality_right }
+attribute_equality       = { variable ~ eq ~ attribute_equality_right }
 
 attribute_arg = { attribute_equality | variable | string_literal }
-function_arg = { variable_with_field | concatenation | hex_alias }
-const_arg = { hex_literal | compile_variable }
+function_arg  = { variable_with_field | concatenation | hex_alias }
+const_arg     = { hex_literal | compile_variable }
 
 attribute = {
-	"#[" ~ variable ~ 
-    (open_paren ~ attribute_arg ~ close_paren)?
-    ~ "]"
+    "#[" ~ variable ~ (open_paren ~ attribute_arg ~ close_paren)? ~ "]"
 }
 
 const_decl = { const_keyword ~ variable ~ eq ~ const_arg ~ semicolon }
 
 function = ${
-	variable ~ WHITESPACE* ~ open_paren
-    	~ WHITESPACE* ~ function_arg ~ WHITESPACE* ~
-    close_paren
+    variable ~ WHITESPACE* ~ open_paren ~ WHITESPACE* ~ function_arg ~ WHITESPACE* ~ close_paren
 }
 
 block_ref_star = { variable }
-block_ref_esp = { variable_with_field | variable }
-block_ref = { (star ~ block_ref_star) | (esp ~ block_ref_esp) }
+block_ref_esp  = { variable_with_field | variable }
+block_ref      = { (star ~ block_ref_star) | (esp ~ block_ref_esp) }
 
 block_item = ${
-	function |
-	hex_alias |
-	block_ref
+    function
+  | hex_alias
+  | block_ref
 }
 
 block_item_with_attr = { attribute* ~ block_item }
 
 block_decl = {
-	abstract_keyword? ~ block_keyword ~ variable ~ open_brace ~
-    	block_item_with_attr*
-     ~ close_brace
+    abstract_keyword? ~ block_keyword ~ variable ~ open_brace ~ block_item_with_attr* ~ close_brace
 }
 
 block_decl_with_attr = {
-	attribute* ~ block_decl
+    attribute* ~ block_decl
 }
 
 contract_decl = {
-	contract_keyword ~ variable ~ open_brace ~
-    	(block_decl_with_attr | const_decl)*
-    ~ close_brace
+    contract_keyword ~ variable ~ open_brace ~ (block_decl_with_attr | const_decl)* ~ close_brace
 }
 
 contract_decl_with_attr = {
-	attribute* ~ contract_decl
+    attribute* ~ contract_decl
 }
 
 file = {
-	SOI ~ 
-	contract_decl_with_attr+ ~
-	EOI
+    SOI ~ contract_decl_with_attr+ ~ EOI
 }

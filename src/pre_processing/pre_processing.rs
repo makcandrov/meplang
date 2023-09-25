@@ -3,23 +3,26 @@ use std::ops::Deref;
 
 use bytes::Bytes;
 
-use crate::ast::*;
-use crate::parser::error::{new_error_from_located, new_error_from_location, new_generic_error};
-use crate::parser::parser::Located;
-use crate::parser::parser::Rule;
-use crate::pre_processing::attribute::Attributes;
-use crate::pre_processing::dependencies::DepsGraph;
-use crate::pre_processing::remapping::remap_blocks;
-use crate::types::bytes32::Bytes32;
-
 use super::attribute::Attribute;
 use super::block_flow::{
-    analyze_block_flow, is_function_name, BlockFlow, BlockFlowBlockRef, BlockFlowItem,
-    BlockFlowPush, BlockFlowPushInner,
+    analyze_block_flow,
+    is_function_name,
+    BlockFlow,
+    BlockFlowBlockRef,
+    BlockFlowItem,
+    BlockFlowPush,
+    BlockFlowPushInner,
 };
 use super::opcode::str_to_op;
 use super::queue::DedupQueue;
 use super::remapping::remap_contracts;
+use crate::ast::*;
+use crate::parser::error::{new_error_from_located, new_error_from_location, new_generic_error};
+use crate::parser::parser::{Located, Rule};
+use crate::pre_processing::attribute::Attributes;
+use crate::pre_processing::dependencies::DepsGraph;
+use crate::pre_processing::remapping::remap_blocks;
+use crate::types::bytes32::Bytes32;
 
 #[derive(Clone, Default, Debug)]
 pub struct Contract {
@@ -43,7 +46,11 @@ pub struct BlockItem {
 
 impl From<BlockItemInner> for BlockItem {
     fn from(inner: BlockItemInner) -> Self {
-        Self { inner, start_names: Vec::new(), end_names: Vec::new() }
+        Self {
+            inner,
+            start_names: Vec::new(),
+            end_names: Vec::new(),
+        }
     }
 }
 
@@ -92,11 +99,7 @@ pub fn pre_process(
             if attribute.is_contract_attribute() {
                 contract_attributes[contract_index].apply(attribute);
             } else {
-                return Err(new_error_from_located(
-                    input,
-                    r_attribute,
-                    "Invalid contract attribute",
-                ));
+                return Err(new_error_from_located(input, r_attribute, "Invalid contract attribute"));
             }
         }
 
@@ -219,11 +222,7 @@ pub fn pre_process_contract(
                         block_attributes[block_index].push(attribute);
                     }
                 } else {
-                    return Err(new_error_from_located(
-                        input,
-                        r_attribute,
-                        "Invalid block attribute.",
-                    ));
+                    return Err(new_error_from_located(input, r_attribute, "Invalid block attribute."));
                 }
             } else {
                 if attribute.is_abstract_block_attribute() {
@@ -259,7 +258,11 @@ pub fn pre_process_contract(
             ));
         }
         if r_block.items.is_empty() {
-            return Err(new_error_from_located(input, &r_block.name, "A block must not be empty."));
+            return Err(new_error_from_located(
+                input,
+                &r_block.name,
+                "A block must not be empty.",
+            ));
         }
     }
 
@@ -312,10 +315,7 @@ pub fn pre_process_contract(
                 new_error_from_located(
                     input,
                     &r_contract.blocks[block_index],
-                    &format!(
-                        "Unused block `{}`",
-                        &r_contract.blocks[block_index].inner().name_str()
-                    )
+                    &format!("Unused block `{}`", &r_contract.blocks[block_index].inner().name_str())
                 )
             );
         }
@@ -383,11 +383,9 @@ pub fn extract_constants(
 
         let value = match &r_constant.value.inner {
             RConstantArg::HexLiteral(hex_literal) => hex_literal.0.clone(),
-            RConstantArg::CompileVariable(compile_variable) => get_compile_variable_value(
-                input,
-                &compile_variable,
-                compile_variables
-            )?.clone(),
+            RConstantArg::CompileVariable(compile_variable) => {
+                get_compile_variable_value(input, &compile_variable, compile_variables)?.clone()
+            },
         };
 
         if contract_names.contains_key(constant_name)
@@ -428,7 +426,11 @@ pub struct BlockPosition {
 
 impl BlockPreProcessingContext {
     pub fn new_root(index: usize) -> Self {
-        Self { root_index: index, inside_abstract: false, line_index: 0 }
+        Self {
+            root_index: index,
+            inside_abstract: false,
+            line_index: 0,
+        }
     }
 
     pub fn next_context(&self, inside_abstract: bool, line_index: usize) -> Self {
@@ -472,14 +474,12 @@ fn pre_process_block(
                     BlockItemInner::Push(Push {
                         attributes: current_attributes.clone(),
                         inner: match inner {
-                            BlockFlowPushInner::Constant(bytes) => {
-                                PushInner::Constant(bytes.clone())
-                            },
-                            BlockFlowPushInner::BlockPc(index) => {
-                                PushInner::BlockPc { index: *index, line: 0 }
-                            },
-                            BlockFlowPushInner::BlockSize(index) => {
-                                PushInner::BlockSize { index: *index, start: 0, end: 0 }
+                            BlockFlowPushInner::Constant(bytes) => PushInner::Constant(bytes.clone()),
+                            BlockFlowPushInner::BlockPc(index) => PushInner::BlockPc { index: *index, line: 0 },
+                            BlockFlowPushInner::BlockSize(index) => PushInner::BlockSize {
+                                index: *index,
+                                start: 0,
+                                end: 0,
                             },
                         },
                     })
@@ -509,7 +509,10 @@ fn pre_process_block(
                 }
 
                 parents.insert(*block_index);
-                let Block { items: mut sub_items, name: _ } = pre_process_block(
+                let Block {
+                    items: mut sub_items,
+                    name: _,
+                } = pre_process_block(
                     input,
                     *block_index,
                     r_blocks,
@@ -523,8 +526,7 @@ fn pre_process_block(
                 )?;
                 parents.remove(&block_index);
                 items.append(&mut sub_items);
-                current_attributes
-                    .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
+                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
             },
             BlockFlowItem::BlockStar(BlockFlowBlockRef {
                 index: block_index,
@@ -571,7 +573,10 @@ fn pre_process_block(
                 }
 
                 parents.insert(*block_index);
-                let Block { items: mut sub_items, name } = pre_process_block(
+                let Block {
+                    items: mut sub_items,
+                    name,
+                } = pre_process_block(
                     input,
                     *block_index,
                     r_blocks,
@@ -587,8 +592,7 @@ fn pre_process_block(
                 sub_items.first_mut().unwrap().start_names.push(name.clone());
                 sub_items.last_mut().unwrap().end_names.push(name);
                 items.append(&mut sub_items);
-                current_attributes
-                    .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
+                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
             },
         }
     }
@@ -610,7 +614,10 @@ fn pre_process_block(
         },
     );
 
-    Ok(Block { items, name: r_blocks[index_to_process].name_str().to_owned() })
+    Ok(Block {
+        items,
+        name: r_blocks[index_to_process].name_str().to_owned(),
+    })
 }
 
 pub fn get_compile_variable_value<'a>(

@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use bytes::Bytes;
+use serde::{Deserialize, Serialize};
 
 use super::settings::{deserialize_bytes, serialize_bytes};
 

@@ -2,10 +2,7 @@ use std::collections::HashMap;
 
 use super::pre_processing::{Block, BlockItemInner, BlockPosition, Contract, Push, PushInner};
 
-pub fn remap_contracts(
-    mut contracts: HashMap<usize, Contract>,
-    remapping: &Vec<usize>,
-) -> Vec<Contract> {
+pub fn remap_contracts(mut contracts: HashMap<usize, Contract>, remapping: &Vec<usize>) -> Vec<Contract> {
     let remapping_map = vec_to_remapping_map(remapping);
 
     for (_, contract) in &mut contracts {

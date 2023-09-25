@@ -1,9 +1,9 @@
-use crate::ast::literal::RHexLiteral;
-use crate::parser::parser::{get_next, FromPair, Located, Rule, map_unique_child};
 use pest::iterators::Pair;
 
-use super::RCompileVariable;
 use super::variable::RVariable;
+use super::RCompileVariable;
+use crate::ast::literal::RHexLiteral;
+use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
 #[derive(Debug, Clone)]
 pub enum RConstantArg {
@@ -55,13 +55,11 @@ impl FromPair for RConstant {
 
         let _ = get_next(&mut const_decl_inner, Rule::const_keyword);
 
-        let name =
-            Located::<RVariable>::from_pair(get_next(&mut const_decl_inner, Rule::variable))?;
+        let name = Located::<RVariable>::from_pair(get_next(&mut const_decl_inner, Rule::variable))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::eq);
 
-        let value =
-            Located::<RConstantArg>::from_pair(get_next(&mut const_decl_inner, Rule::const_arg))?;
+        let value = Located::<RConstantArg>::from_pair(get_next(&mut const_decl_inner, Rule::const_arg))?;
 
         let _ = get_next(&mut const_decl_inner, Rule::semicolon);
         assert!(const_decl_inner.next() == None);

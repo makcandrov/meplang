@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
-use serde::{Deserialize, Deserializer, Serialize, Serializer, ser::SerializeMap};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
@@ -10,7 +11,7 @@ pub struct CompilerSettings {
     pub push0: bool,
     #[serde(default)]
     pub filling_pattern: FillingPatern,
-    #[serde(serialize_with="serialize_variables", deserialize_with="deserialize_variables")]
+    #[serde(serialize_with = "serialize_variables", deserialize_with = "deserialize_variables")]
     pub variables: HashMap<String, Bytes>,
 }
 
@@ -97,8 +98,7 @@ mod tests {
     #[test]
     pub fn test_serialize() {
         let settings: CompilerSettings =
-            serde_json::from_str("{\"push0\": true, \"fillingPattern\": {\"repeat\": \"0x11\"}}")
-                .unwrap();
+            serde_json::from_str("{\"push0\": true, \"fillingPattern\": {\"repeat\": \"0x11\"}}").unwrap();
         dbg!(&settings);
     }
 }

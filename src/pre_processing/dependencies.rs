@@ -13,7 +13,11 @@ pub struct DepsGraph<T: Debug + Clone> {
 
 impl<T: Default + Debug + Clone> Default for DepsGraph<T> {
     fn default() -> Self {
-        Self { parents: HashMap::new(), children: HashMap::new(), leaves: IndexedVec::new() }
+        Self {
+            parents: HashMap::new(),
+            children: HashMap::new(),
+            leaves: IndexedVec::new(),
+        }
     }
 }
 

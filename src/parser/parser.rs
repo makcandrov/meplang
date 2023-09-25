@@ -44,7 +44,10 @@ pub struct Location {
 impl<T: FromPair> FromPair for Located<T> {
     fn from_pair(pair: Pair<'_, Rule>) -> Result<Located<T>, pest::error::Error<Rule>> {
         Ok(Self {
-            location: Location { start: pair.as_span().start(), end: pair.as_span().end() },
+            location: Location {
+                start: pair.as_span().start(),
+                end: pair.as_span().end(),
+            },
             inner: T::from_pair(pair)?,
         })
     }

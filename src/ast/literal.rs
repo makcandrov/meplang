@@ -1,9 +1,8 @@
-use crate::parser::error::new_error_from_pair;
-use crate::parser::parser::map_unique_child;
-use crate::parser::parser::FromPair;
-use crate::parser::parser::Rule;
 use bytes::Bytes;
 use pest::iterators::Pair;
+
+use crate::parser::error::new_error_from_pair;
+use crate::parser::parser::{map_unique_child, FromPair, Rule};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RHexLiteral(pub Bytes);

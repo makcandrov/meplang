@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use bytes::{BufMut, Bytes, BytesMut};
 
+use super::artifacts::ContractArtifacts;
+use super::fillers::{fill_with_pattern, fill_with_random};
+use super::settings::{CompilerSettings, FillingPatern};
 use crate::compile::artifacts::Artifacts;
 use crate::pre_processing::opcode::{push_length, PUSH0, PUSH1, PUSH2, PUSH32};
 use crate::pre_processing::pre_processing::{Block, BlockItemInner, Contract, PushInner};
 use crate::types::bytes32::Bytes32;
-
-use super::artifacts::ContractArtifacts;
-use super::fillers::{fill_with_pattern, fill_with_random};
-use super::settings::{CompilerSettings, FillingPatern};
 
 pub fn compile_contracts(contracts: Vec<Contract>, settings: CompilerSettings) -> Artifacts {
     let mut artifacts = Artifacts::default();
@@ -18,8 +17,7 @@ pub fn compile_contracts(contracts: Vec<Contract>, settings: CompilerSettings) -
     let mut bytecodes = HashMap::<usize, Bytes>::new();
 
     for contract_index in (0..contracts.len()).rev() {
-        let contract_artifacts =
-            compile_contract(&contracts[contract_index].blocks, &bytecodes, &settings);
+        let contract_artifacts = compile_contract(&contracts[contract_index].blocks, &bytecodes, &settings);
         let contract_name = &contracts[contract_index].name;
 
         artifacts.contracts.insert(contract_name.clone(), contract_artifacts);
@@ -156,9 +154,7 @@ fn compile_contract(
 
             match &settings.filling_pattern {
                 FillingPatern::Random => fill_with_random(&mut res, bytes_to_add),
-                FillingPatern::Repeat(pattern) => {
-                    fill_with_pattern(&mut res, pattern, bytes_to_add)
-                },
+                FillingPatern::Repeat(pattern) => fill_with_pattern(&mut res, pattern, bytes_to_add),
             }
         }
 

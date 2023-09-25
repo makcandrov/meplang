@@ -1,14 +1,13 @@
-use bytes::Bytes;
-
-use crate::parser::error::new_error_from_located;
-use crate::parser::parser::{Located, Rule};
-use crate::types::bytes32::Bytes32;
 use std::collections::HashMap;
 
-use crate::ast::{RAttribute, RAttributeArg, RAttributeEqualityRight};
+use bytes::Bytes;
 
 use super::opcode::*;
 use super::pre_processing::get_compile_variable_value;
+use crate::ast::{RAttribute, RAttributeArg, RAttributeEqualityRight};
+use crate::parser::error::new_error_from_located;
+use crate::parser::parser::{Located, Rule};
+use crate::types::bytes32::Bytes32;
 
 #[rustfmt::skip]
 const fn is_assumable_opcode(op: OpCode) -> bool {
@@ -117,11 +116,7 @@ impl Attribute {
 
                 if is_assumable_opcode(op) {
                     let Some(formatted) = Bytes32::from_bytes(&bytes, true) else {
-                        return Err(new_error_from_located(
-                            input,
-                            &eq.name,
-                            "Literal exceeds 32 bytes.",
-                        ));
+                        return Err(new_error_from_located(input, &eq.name, "Literal exceeds 32 bytes."));
                     };
 
                     Ok(Self::Assume { op, v: formatted })
@@ -182,7 +177,10 @@ pub struct Attributes {
 
 impl Default for Attributes {
     fn default() -> Self {
-        Self { assumes: HashMap::new(), optimization: true }
+        Self {
+            assumes: HashMap::new(),
+            optimization: true,
+        }
     }
 }
 

@@ -1,9 +1,8 @@
-use crate::parser::parser::FromPair;
-use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
 use super::variable::{RVariable, RVariableWithField};
 use super::{RConcatenation, RHexAlias};
+use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
 #[derive(Debug, Clone)]
 pub enum RFunctionArg {
@@ -59,8 +58,7 @@ impl FromPair for RFunction {
 
         _ = get_next(&mut function_inner, Rule::open_paren);
 
-        let arg =
-            Located::<RFunctionArg>::from_pair(get_next(&mut function_inner, Rule::function_arg))?;
+        let arg = Located::<RFunctionArg>::from_pair(get_next(&mut function_inner, Rule::function_arg))?;
 
         _ = get_next(&mut function_inner, Rule::close_paren);
         assert!(function_inner.next() == None);

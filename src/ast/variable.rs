@@ -1,12 +1,7 @@
 use pest::iterators::Pair;
 
-use crate::parser::parser::get_next;
-use crate::parser::parser::map_unique_child;
-use crate::parser::parser::FromPair;
-use crate::parser::parser::Located;
-use crate::parser::parser::Rule;
-
 use super::RHexLiteral;
+use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RVariable(pub String);

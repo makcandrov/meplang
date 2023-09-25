@@ -1,11 +1,10 @@
 use std::ops::Deref;
 
-use crate::parser::parser::FromPair;
-use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::{RStringLiteral, RHexLiteral, RCompileVariable};
 use super::variable::RVariable;
+use super::{RCompileVariable, RHexLiteral, RStringLiteral};
+use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
 #[derive(Debug, Clone)]
 pub enum RAttributeEqualityRight {
@@ -67,10 +66,8 @@ impl FromPair for RAttributeEquality {
 
         _ = get_next(&mut inner, Rule::eq);
 
-        let value = Located::<RAttributeEqualityRight>::from_pair(get_next(
-            &mut inner,
-            Rule::attribute_equality_right,
-        ))?;
+        let value =
+            Located::<RAttributeEqualityRight>::from_pair(get_next(&mut inner, Rule::attribute_equality_right))?;
 
         assert!(inner.next() == None);
 
@@ -97,7 +94,6 @@ impl From<RVariable> for RAttributeArg {
     }
 }
 
-
 impl From<RStringLiteral> for RAttributeArg {
     fn from(string_literal: RStringLiteral) -> Self {
         Self::StringLiteral(string_literal)
@@ -111,9 +107,7 @@ impl FromPair for RAttributeArg {
         map_unique_child(attribute_arg, |inner| match inner.as_rule() {
             Rule::attribute_equality => Ok(RAttributeEquality::from_pair(inner)?.into()),
             Rule::variable => Ok(RVariable::from_pair(inner)?.into()),
-            Rule::string_literal => {
-                Ok(RStringLiteral::from_pair(inner)?.into())
-            },
+            Rule::string_literal => Ok(RStringLiteral::from_pair(inner)?.into()),
             _ => unreachable!(),
         })
     }
@@ -176,7 +170,10 @@ impl<T: FromPair> FromPair for WithAttributes<T> {
                 _ => {
                     let attr_inner = T::from_pair(attr_or_item)?;
                     assert!(inner.next() == None);
-                    return Ok(Self { attributes, inner: attr_inner });
+                    return Ok(Self {
+                        attributes,
+                        inner: attr_inner,
+                    });
                 },
             }
         }

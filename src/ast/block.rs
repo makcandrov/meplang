@@ -1,11 +1,10 @@
-use crate::parser::parser::FromPair;
-use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::RHexAlias;
 use super::attribute::WithAttributes;
 use super::function::RFunction;
 use super::variable::{RVariable, RVariableWithField};
+use super::RHexAlias;
+use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
 #[derive(Debug, Clone)]
 pub enum RBlockRefStar {
@@ -149,8 +148,7 @@ impl FromPair for RBlock {
             _ => unreachable!(),
         };
 
-        let name =
-            Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
+        let name = Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
 
         _ = get_next(&mut block_decl_inner, Rule::open_brace);
 

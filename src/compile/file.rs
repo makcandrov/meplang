@@ -1,15 +1,10 @@
-use crate::ast::RFile;
-use crate::pre_processing::pre_processing::pre_process;
-
 use super::artifacts::Artifacts;
 use super::compile::compile_contracts;
 use super::settings::CompilerSettings;
+use crate::ast::RFile;
+use crate::pre_processing::pre_processing::pre_process;
 
-pub fn compile_file(
-    path: &str,
-    contract_name: &str,
-    settings: CompilerSettings,
-) -> Result<Artifacts, String> {
+pub fn compile_file(path: &str, contract_name: &str, settings: CompilerSettings) -> Result<Artifacts, String> {
     let input = match std::fs::read_to_string(path) {
         Ok(input) => input,
         Err(err) => return Err(format!("Could not open file `{}`: {}", path, err.to_string())),

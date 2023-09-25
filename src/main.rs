@@ -1,8 +1,9 @@
+use std::io::Write;
+
 use compile::file::compile_file;
 use compile::settings::CompilerSettings;
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
-use std::io::Write;
 
 mod ast;
 mod compile;
@@ -23,7 +24,11 @@ fn init_env_logger() {
                     _ => Color::White,
                 })
                 .set_bold(true);
-            writeln!(buf, "{}", style.value(format!("{}: {}", record.level(), record.args(),)))
+            writeln!(
+                buf,
+                "{}",
+                style.value(format!("{}: {}", record.level(), record.args(),))
+            )
         })
         .init();
 }
@@ -119,14 +124,10 @@ fn main() {
                 return;
             };
 
-            match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default())
-            {
+            match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default()) {
                 Ok(artifacts) => {
                     if let Some(output_file) = output_file {
-                        match std::fs::write(
-                            &output_file,
-                            serde_json::to_string_pretty(&artifacts).unwrap(),
-                        ) {
+                        match std::fs::write(&output_file, serde_json::to_string_pretty(&artifacts).unwrap()) {
                             Ok(()) => {
                                 println!(
                                     "Contract `{}` bytecode written in the file `{}`.",
