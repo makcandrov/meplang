@@ -85,7 +85,7 @@ fn main() {
                             return;
                         }
                     },
-                    "-settings" => {
+                    "-s" | "-settings" => {
                         let Some(next) = args.next() else {
                             log::error!("Expected an argument after `{}`.", arg);
                             return;

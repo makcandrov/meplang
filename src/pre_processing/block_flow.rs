@@ -194,7 +194,7 @@ pub fn analyze_block_flow(
                 };
 
                 let push = match &function.arg.inner {
-                    RFunctionArg::HexLiteral(hex_literal) => {
+                    RFunctionArg::HexAlias(RHexAlias::HexLiteral(hex_literal)) => {
                         let Some(formatted) = Bytes32::from_bytes(&hex_literal.0, push_right)
                         else {
                             return Err(new_error_from_located(
@@ -206,7 +206,7 @@ pub fn analyze_block_flow(
 
                         BlockFlowPushInner::Constant(formatted)
                     },
-                    RFunctionArg::Variable(variable) => {
+                    RFunctionArg::HexAlias(RHexAlias::Variable(variable)) => {
                         let Some(constant_value) = constants.get(variable.as_str()) else {
                             return Err(new_error_from_located(
                                 input,
@@ -226,6 +226,19 @@ pub fn analyze_block_flow(
 
                         BlockFlowPushInner::Constant(formatted)
                     },
+                    RFunctionArg::HexAlias(RHexAlias::CompileVariable(compile_variable)) => {
+                        let bytes = get_compile_variable_value(input, compile_variable, compile_variables)?;
+                        let Some(formatted) = Bytes32::from_bytes(bytes, push_right)
+                        else {
+                            return Err(new_error_from_located(
+                                input,
+                                &function.arg,
+                                &format!("Push content exceeds 32 bytes."),
+                            ));
+                        };
+
+                        BlockFlowPushInner::Constant(formatted)
+                    }
                     RFunctionArg::VariableWithField(variable_with_field) => {
                         if !push_right {
                             return Err(new_error_from_located(

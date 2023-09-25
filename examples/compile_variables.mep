@@ -1,0 +1,34 @@
+/**
+ * This file requires you to specify the values of CHAINID and VAR0..VAR4 to the compiler
+ * through the compiler settings. One example is:
+ * `{
+ *      "variables": {
+ *          "CHAINID": "0x01",
+ *          "VAR0": "0x02",
+ *          "VAR1": "0x0000000000000000000000000003",
+ *          "VAR2": "0x0044",
+ *          "VAR3": "0x11",
+ *          "VAR4": "0x45458448"
+ *      }
+ *  }`
+ */
+
+#[assume(chainid=$CHAINID$)]
+contract CompileVariables {
+    const VAR0 = $VAR0$;
+
+    block main {
+        push(VAR0)
+        push($VAR0$)
+        push(j.pc) jump
+    }
+
+    block j {
+        jumpdest
+        $VAR1$
+        VAR0
+        push($VAR1$ @ VAR0)
+        lpush(VAR0 @ $VAR2$)
+        push($VAR3$ @ $VAR4$)
+    }
+}

@@ -2,39 +2,31 @@ use crate::parser::parser::FromPair;
 use crate::parser::parser::{get_next, map_unique_child, Located, Rule};
 use pest::iterators::Pair;
 
-use super::literal::RHexLiteral;
 use super::variable::{RVariable, RVariableWithField};
-use super::RConcatenation;
+use super::{RConcatenation, RHexAlias};
 
 #[derive(Debug, Clone)]
 pub enum RFunctionArg {
-    Variable(RVariable),
     VariableWithField(RVariableWithField),
     VariablesConcat(RConcatenation),
-    HexLiteral(RHexLiteral),
-}
-
-impl From<RVariable> for RFunctionArg {
-    fn from(value: RVariable) -> Self {
-        Self::Variable(value)
-    }
+    HexAlias(RHexAlias),
 }
 
 impl From<RVariableWithField> for RFunctionArg {
-    fn from(value: RVariableWithField) -> Self {
-        Self::VariableWithField(value)
+    fn from(variable_with_field: RVariableWithField) -> Self {
+        Self::VariableWithField(variable_with_field)
     }
 }
 
 impl From<RConcatenation> for RFunctionArg {
-    fn from(value: RConcatenation) -> Self {
-        Self::VariablesConcat(value)
+    fn from(concatenation: RConcatenation) -> Self {
+        Self::VariablesConcat(concatenation)
     }
 }
 
-impl From<RHexLiteral> for RFunctionArg {
-    fn from(value: RHexLiteral) -> Self {
-        Self::HexLiteral(value)
+impl From<RHexAlias> for RFunctionArg {
+    fn from(hex_alias: RHexAlias) -> Self {
+        Self::HexAlias(hex_alias)
     }
 }
 
@@ -43,10 +35,9 @@ impl FromPair for RFunctionArg {
         assert!(function_arg.as_rule() == Rule::function_arg);
 
         map_unique_child(function_arg, |child| match child.as_rule() {
-            Rule::variable => Ok(RVariable::from_pair(child)?.into()),
             Rule::variable_with_field => Ok(RVariableWithField::from_pair(child)?.into()),
             Rule::concatenation => Ok(RConcatenation::from_pair(child)?.into()),
-            Rule::hex_literal => Ok(RHexLiteral::from_pair(child)?.into()),
+            Rule::hex_alias => Ok(RHexAlias::from_pair(child)?.into()),
             _ => unreachable!(),
         })
     }

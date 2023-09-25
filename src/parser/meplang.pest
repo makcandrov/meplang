@@ -35,7 +35,7 @@ attribute_equality_right = { hex_literal | compile_variable | string_literal }
 attribute_equality = { variable ~ eq ~ attribute_equality_right }
 
 attribute_arg = { attribute_equality | variable | string_literal }
-function_arg = { variable_with_field | hex_literal | compile_variable | concatenation | variable }
+function_arg = { variable_with_field | concatenation | hex_alias }
 const_arg = { hex_literal | compile_variable }
 
 attribute = {
