@@ -6,10 +6,16 @@ edition = "2021"
 [dependencies]
 pest = "2.7"
 pest_derive = "2.7"
-bytes = "1.4.0"
+bytes = "1.5.0"
 hex = "0.4.3"
 log = "0.4"
 env_logger = "0.10"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rand = "0.8.5"
+
+[profile.maxperf]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+incremental = false
