@@ -2,7 +2,6 @@ use std::io::Write;
 
 use env_logger::fmt::Color;
 use log::{Level, LevelFilter};
-
 use meplang::*;
 
 fn init_env_logger() {
