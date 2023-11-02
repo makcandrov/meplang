@@ -2,6 +2,7 @@
 name = "meplang"
 version = "0.1.5"
 edition = "2021"
+repository = "https://github.com/makcandrov/meplang"
 
 [dependencies]
 pest = "2.7"
