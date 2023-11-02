@@ -11,7 +11,7 @@ pub struct CompilerSettings {
     pub push0: bool,
     #[serde(default)]
     pub filling_pattern: FillingPatern,
-    #[serde(serialize_with = "serialize_variables", deserialize_with = "deserialize_variables")]
+    #[serde(default, serialize_with = "serialize_variables", deserialize_with = "deserialize_variables")]
     pub variables: HashMap<String, Bytes>,
 }
 
