@@ -71,7 +71,7 @@ where
     .map_err(|e| serde::de::Error::custom(e.to_string()))
 }
 
-pub fn serialize_variables<S>(x: &HashMap<String, Bytes>, s: S) -> Result<S::Ok, S::Error>
+fn serialize_variables<S>(x: &HashMap<String, Bytes>, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
@@ -82,7 +82,7 @@ where
     map.end()
 }
 
-pub fn deserialize_variables<'de, D>(d: D) -> Result<HashMap<String, Bytes>, D::Error>
+fn deserialize_variables<'de, D>(d: D) -> Result<HashMap<String, Bytes>, D::Error>
 where
     D: Deserializer<'de>,
 {
@@ -113,6 +113,6 @@ mod tests {
     }
 }
 
-pub fn bool_true() -> bool {
+fn bool_true() -> bool {
     true
 }
