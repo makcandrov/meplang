@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
 
 use bytes::Bytes;
-use indexmap::IndexSet;
 
 use super::attribute::Attribute;
 use super::block_flow::{
@@ -15,6 +14,7 @@ use super::block_flow::{
     BlockFlowPushInner,
 };
 use super::opcode::str_to_op;
+use super::queue::PersistentDedupQueue;
 use super::remapping::remap_contracts;
 use crate::ast::*;
 use crate::parser::error::{new_error_from_located, new_error_from_location, new_generic_error};
@@ -123,8 +123,8 @@ pub fn pre_process(
     };
 
     let mut contracts = HashMap::<usize, Contract>::new();
-    let mut contracts_queue = IndexSet::<usize>::new();
-    contracts_queue.insert(main_index);
+    let mut contracts_queue = PersistentDedupQueue::<usize>::new();
+    contracts_queue.insert_if_needed(main_index);
 
     let mut contracts_dependency_tree = DepsGraph::<usize>::new();
 
@@ -140,7 +140,7 @@ pub fn pre_process(
         )?;
 
         for dependency in dependencies {
-            contracts_queue.insert(dependency);
+            contracts_queue.insert_if_needed(dependency);
             contracts_dependency_tree.insert_if_needed(&index_to_process, &dependency);
         }
 
@@ -191,7 +191,7 @@ pub fn pre_process_contract(
     let mut last_index: Option<usize> = None;
     let mut block_names = HashMap::<String, usize>::new();
 
-    let mut blocks_queue = IndexSet::<usize>::new();
+    let mut blocks_queue = PersistentDedupQueue::<usize>::new();
 
     for block_index in 0..r_contract.blocks.len() {
         let r_block_with_attr = &r_contract.blocks[block_index];
@@ -200,7 +200,7 @@ pub fn pre_process_contract(
             if !r_block_with_attr.inner().abstr {
                 if attribute.is_block_attribute() {
                     if attribute.is_last() {
-                        blocks_queue.insert(block_index);
+                        blocks_queue.insert_if_needed(block_index);
                         if last_index.replace(block_index).is_some() {
                             return Err(new_error_from_located(
                                 input,
@@ -209,7 +209,7 @@ pub fn pre_process_contract(
                             ));
                         }
                     } else if attribute.is_keep() {
-                        blocks_queue.insert(block_index);
+                        blocks_queue.insert_if_needed(block_index);
                     } else if attribute.is_main() {
                         if main_index.replace(block_index).is_some() {
                             return Err(new_error_from_located(
@@ -278,7 +278,7 @@ pub fn pre_process_contract(
             &format!("Block `main` not found in contract `{}`", r_contract.name_str()),
         ));
     };
-    blocks_queue.insert(main_index);
+    blocks_queue.insert_if_needed(main_index);
 
     let mut blocks_flow = HashMap::<usize, BlockFlow>::new();
     let mut contract_dependencies = HashSet::<usize>::new();
@@ -297,11 +297,11 @@ pub fn pre_process_contract(
         )?;
 
         for strong_dep in &block.strong_deps {
-            blocks_queue.insert(*strong_dep);
+            blocks_queue.insert_if_needed(*strong_dep);
             block_dependency_tree.insert_if_needed(strong_dep, &index_to_process);
         }
         for weak_dep in &block.weak_deps {
-            blocks_queue.insert(*weak_dep);
+            blocks_queue.insert_if_needed(*weak_dep);
         }
 
         blocks_flow.insert(index_to_process, block);
