@@ -1,3 +1,4 @@
+use enum_impl::EnumImpl;
 use pest::iterators::Pair;
 
 use super::attribute::WithAttributes;
@@ -6,15 +7,10 @@ use super::variable::{RVariable, RVariableWithField};
 use super::RHexAlias;
 use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RBlockRefStar {
+    #[enum_impl(impl from)]
     Variable(RVariable),
-}
-
-impl From<RVariable> for RBlockRefStar {
-    fn from(variable: RVariable) -> Self {
-        Self::Variable(variable)
-    }
 }
 
 impl FromPair for RBlockRefStar {
@@ -28,22 +24,12 @@ impl FromPair for RBlockRefStar {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RBlockRefEsp {
+    #[enum_impl(impl from)]
     Variable(RVariable),
+    #[enum_impl(impl from)]
     VariableWithField(RVariableWithField),
-}
-
-impl From<RVariable> for RBlockRefEsp {
-    fn from(variable: RVariable) -> Self {
-        Self::Variable(variable)
-    }
-}
-
-impl From<RVariableWithField> for RBlockRefEsp {
-    fn from(variable_with_field: RVariableWithField) -> Self {
-        Self::VariableWithField(variable_with_field)
-    }
 }
 
 impl FromPair for RBlockRefEsp {
@@ -58,9 +44,11 @@ impl FromPair for RBlockRefEsp {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RBlockRef {
+    #[enum_impl(impl from)]
     Star(RBlockRefStar),
+    #[enum_impl(impl from)]
     Esp(RBlockRefEsp),
 }
 
@@ -71,8 +59,8 @@ impl FromPair for RBlockRef {
         let mut inner = block_ref.into_inner();
 
         let res = match inner.next().unwrap().as_rule() {
-            Rule::star => Self::Star(RBlockRefStar::from_pair(inner.next().unwrap())?),
-            Rule::esp => Self::Esp(RBlockRefEsp::from_pair(inner.next().unwrap())?),
+            Rule::star => RBlockRefStar::from_pair(inner.next().unwrap())?.into(),
+            Rule::esp => RBlockRefEsp::from_pair(inner.next().unwrap())?.into(),
             _ => unreachable!(),
         };
 
@@ -82,29 +70,14 @@ impl FromPair for RBlockRef {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RBlockItem {
+    #[enum_impl(impl from)]
     Function(RFunction),
+    #[enum_impl(impl from)]
     HexAlias(RHexAlias),
+    #[enum_impl(impl from)]
     BlockRef(RBlockRef),
-}
-
-impl From<RFunction> for RBlockItem {
-    fn from(function: RFunction) -> Self {
-        Self::Function(function)
-    }
-}
-
-impl From<RHexAlias> for RBlockItem {
-    fn from(hex_alias: RHexAlias) -> Self {
-        Self::HexAlias(hex_alias)
-    }
-}
-
-impl From<RBlockRef> for RBlockItem {
-    fn from(block_ref: RBlockRef) -> Self {
-        Self::BlockRef(block_ref)
-    }
 }
 
 impl FromPair for RBlockItem {

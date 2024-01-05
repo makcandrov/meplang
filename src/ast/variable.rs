@@ -1,3 +1,4 @@
+use enum_impl::EnumImpl;
 use pest::iterators::Pair;
 
 use super::RHexLiteral;
@@ -69,29 +70,14 @@ impl RCompileVariable {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RHexAlias {
+    #[enum_impl(impl from)]
     HexLiteral(RHexLiteral),
+    #[enum_impl(impl from)]
     Variable(RVariable),
+    #[enum_impl(impl from)]
     CompileVariable(RCompileVariable),
-}
-
-impl From<RHexLiteral> for RHexAlias {
-    fn from(hex_literal: RHexLiteral) -> Self {
-        Self::HexLiteral(hex_literal)
-    }
-}
-
-impl From<RVariable> for RHexAlias {
-    fn from(variable: RVariable) -> Self {
-        Self::Variable(variable)
-    }
-}
-
-impl From<RCompileVariable> for RHexAlias {
-    fn from(compile_variable: RCompileVariable) -> Self {
-        Self::CompileVariable(compile_variable)
-    }
 }
 
 impl FromPair for RHexAlias {
