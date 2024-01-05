@@ -2,13 +2,13 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::hash::Hash;
 
-use super::queue::IndexedVec;
+use indexmap::IndexSet;
 
 #[derive(Debug, Clone)]
 pub struct DepsGraph<T: Debug + Clone> {
     parents: HashMap<T, HashSet<T>>,
     children: HashMap<T, HashSet<T>>,
-    leaves: IndexedVec<T>,
+    leaves: IndexSet<T>,
 }
 
 impl<T: Default + Debug + Clone> Default for DepsGraph<T> {
@@ -16,7 +16,7 @@ impl<T: Default + Debug + Clone> Default for DepsGraph<T> {
         Self {
             parents: HashMap::new(),
             children: HashMap::new(),
-            leaves: IndexedVec::new(),
+            leaves: IndexSet::new(),
         }
     }
 }
@@ -76,8 +76,8 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
         self.children.len() == 0 && self.parents.len() == 0
     }
 
-    pub fn leaves(&self) -> &Vec<T> {
-        &self.leaves.as_vec()
+    pub fn leaves(&self) -> impl Iterator<Item = &T> {
+        self.leaves.iter()
     }
 
     fn insert_child(&mut self, parent: &T, child: &T) -> bool {
