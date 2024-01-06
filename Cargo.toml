@@ -1,11 +1,12 @@
 [package]
 name = "meplang"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2021"
 repository = "https://github.com/makcandrov/meplang"
 homepage = "https://github.com/makcandrov/meplang"
+documentation = "https://docs.rs/meplang"
 description = "An EVM low-level language that gives full control over the control flow of the smart contract."
-license = "GPL-3.0"
+license = "MIT OR Apache-2.0"
 keywords = ["crypto", "ethereum"]
 
 [dependencies]
