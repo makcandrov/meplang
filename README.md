@@ -22,7 +22,7 @@ To update from source, run the same command again.
 
 Here is an example of a simple Meplang contract, that returns "Hello World!" as bytes:
 
-```rust
+```rust,ignore
 contract HelloWorld {
     block main {
         // copy the bytes into memory
@@ -61,7 +61,7 @@ meplang compile -c HelloWorld -i hello_world.mep -o hello_world.json
 
 The compilation gives the runtime bytecode of the smart contract. To get the deployment contract, use an auxiliary contract, and compile it:
 
-```rust
+```rust,ignore
 contract Constructor {
     block main {
         // copy the bytes into memory
@@ -92,7 +92,7 @@ Compile the contract `Constructor` to get the deployment bytecode of the contrac
 - A **block** is declared inside a contract using the keyword `block`. A block can be defined **abstract** (see later) using the keyword `abstract` before `block`. The first opcodes of the contract are from the necessary block named `main` (or a block surrounded by the attribute `#[main]`).
 - A **constant** is declared inside a contract using the keyword `const`. Constants can only be used inside a function `push` inside a block.
 
-```rust
+```rust,ignore
 contract BalanceGetter {
     const BALANCE_OF_SELECTOR = 0x70a08231;
     const WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -119,7 +119,7 @@ contract BalanceGetter {
 
 - Inside a block, any opcode can be used *except PUSH1 to PUSH32 opcodes* (PUSH0 is allowed). Raw bytecode can also be used as is. A value can be pushed using the function `push`, which can take an hexadecimal literal, a constant, a *non-abstract* block PC or size as an argument. Only values inside a `push` function will be optimized by the compiler.
 
-```rust
+```rust,ignore
 contract Contract {
     const MAGIC_NUMBER = 0xff;
 
@@ -144,7 +144,7 @@ contract Contract {
 ```
 - A *non-abstract* block can be copied at most once inside another block using the operator `*`. An *abstract* block can be copied as many times as desired inside other blocks using the operator `&`. Therefore, we cannot refer to the `pc` or to the `size` of an *abstract* block, because it may appear multiple times in the bytecode, and not be compiled the same every time.
 
-```rust
+```rust,ignore
 contract Contract {
     #[assume(msize = 0x00)]
     block main {
