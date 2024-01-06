@@ -1,34 +1,20 @@
 use std::ops::Deref;
 
+use enum_impl::EnumImpl;
 use pest::iterators::Pair;
 
 use super::variable::RVariable;
 use super::{RCompileVariable, RHexLiteral, RStringLiteral};
 use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RAttributeEqualityRight {
+    #[enum_impl(impl from)]
     HexLiteral(RHexLiteral),
+    #[enum_impl(impl from)]
     CompileVariable(RCompileVariable),
+    #[enum_impl(impl from)]
     StringLiteral(RStringLiteral),
-}
-
-impl From<RHexLiteral> for RAttributeEqualityRight {
-    fn from(hex_literal: RHexLiteral) -> Self {
-        Self::HexLiteral(hex_literal)
-    }
-}
-
-impl From<RCompileVariable> for RAttributeEqualityRight {
-    fn from(compile_variable: RCompileVariable) -> Self {
-        Self::CompileVariable(compile_variable)
-    }
-}
-
-impl From<RStringLiteral> for RAttributeEqualityRight {
-    fn from(string_literal: RStringLiteral) -> Self {
-        Self::StringLiteral(string_literal)
-    }
 }
 
 impl FromPair for RAttributeEqualityRight {
@@ -75,29 +61,14 @@ impl FromPair for RAttributeEquality {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RAttributeArg {
+    #[enum_impl(impl from)]
     AttributeEquality(RAttributeEquality),
+    #[enum_impl(impl from)]
     Variable(RVariable),
+    #[enum_impl(impl from)]
     StringLiteral(RStringLiteral),
-}
-
-impl From<RAttributeEquality> for RAttributeArg {
-    fn from(attribute_equality: RAttributeEquality) -> Self {
-        Self::AttributeEquality(attribute_equality)
-    }
-}
-
-impl From<RVariable> for RAttributeArg {
-    fn from(variable: RVariable) -> Self {
-        Self::Variable(variable)
-    }
-}
-
-impl From<RStringLiteral> for RAttributeArg {
-    fn from(string_literal: RStringLiteral) -> Self {
-        Self::StringLiteral(string_literal)
-    }
 }
 
 impl FromPair for RAttributeArg {

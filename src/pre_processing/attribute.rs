@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
+use enum_impl::EnumImpl;
 
 use super::opcode::*;
 use super::pre_processing::get_compile_variable_value;
@@ -19,12 +20,20 @@ const fn is_assumable_opcode(op: OpCode) -> bool {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumImpl)]
 pub enum Attribute {
-    Assume { op: u8, v: Bytes32 },
-    ClearAssume { op: u8 },
+    Assume {
+        op: u8,
+        v: Bytes32,
+    },
+    ClearAssume {
+        op: u8,
+    },
+    #[enum_impl(pub is)]
     Keep,
+    #[enum_impl(pub is)]
     Main,
+    #[enum_impl(pub is)]
     Last,
     Optimization(bool),
 }
@@ -48,18 +57,6 @@ impl Attribute {
             Self::ClearAssume { op: _ } => true,
             _ => false,
         }
-    }
-
-    pub fn is_main(&self) -> bool {
-        *self == Self::Main
-    }
-
-    pub fn is_last(&self) -> bool {
-        *self == Self::Last
-    }
-
-    pub fn is_keep(&self) -> bool {
-        *self == Self::Keep
     }
 
     pub fn from_r_attribute(

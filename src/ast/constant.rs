@@ -1,3 +1,4 @@
+use enum_impl::EnumImpl;
 use pest::iterators::Pair;
 
 use super::variable::RVariable;
@@ -5,22 +6,12 @@ use super::RCompileVariable;
 use crate::ast::literal::RHexLiteral;
 use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RConstantArg {
+    #[enum_impl(impl from)]
     HexLiteral(RHexLiteral),
+    #[enum_impl(impl from)]
     CompileVariable(RCompileVariable),
-}
-
-impl From<RHexLiteral> for RConstantArg {
-    fn from(hex_literal: RHexLiteral) -> Self {
-        Self::HexLiteral(hex_literal)
-    }
-}
-
-impl From<RCompileVariable> for RConstantArg {
-    fn from(compile_variable: RCompileVariable) -> Self {
-        Self::CompileVariable(compile_variable)
-    }
 }
 
 impl FromPair for RConstantArg {

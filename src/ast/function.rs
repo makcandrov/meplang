@@ -1,32 +1,18 @@
+use enum_impl::EnumImpl;
 use pest::iterators::Pair;
 
 use super::variable::{RVariable, RVariableWithField};
 use super::{RConcatenation, RHexAlias};
 use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, EnumImpl)]
 pub enum RFunctionArg {
+    #[enum_impl(impl from)]
     VariableWithField(RVariableWithField),
+    #[enum_impl(impl from)]
     VariablesConcat(RConcatenation),
+    #[enum_impl(impl from)]
     HexAlias(RHexAlias),
-}
-
-impl From<RVariableWithField> for RFunctionArg {
-    fn from(variable_with_field: RVariableWithField) -> Self {
-        Self::VariableWithField(variable_with_field)
-    }
-}
-
-impl From<RConcatenation> for RFunctionArg {
-    fn from(concatenation: RConcatenation) -> Self {
-        Self::VariablesConcat(concatenation)
-    }
-}
-
-impl From<RHexAlias> for RFunctionArg {
-    fn from(hex_alias: RHexAlias) -> Self {
-        Self::HexAlias(hex_alias)
-    }
 }
 
 impl FromPair for RFunctionArg {
