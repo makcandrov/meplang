@@ -1,6 +1,6 @@
 [package]
 name = "meplang"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 repository = "https://github.com/makcandrov/meplang"
 homepage = "https://github.com/makcandrov/meplang"
@@ -10,17 +10,17 @@ license = "MIT OR Apache-2.0"
 keywords = ["crypto", "ethereum"]
 
 [dependencies]
-pest = "2.7"
-pest_derive = "2.7"
-bytes = "1.5.0"
-hex = "0.4.3"
-log = "0.4"
-env_logger = "0.10"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-rand = "0.8.5"
-indexmap = "2.1.0"
-enum-impl = "0.1"
+pest = "2"
+pest_derive = "2"
+bytes = "1.5"
+hex = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rand = "0.8"
+indexmap = "2.1"
+quick-impl = "0.1"
 
 [profile.maxperf]
 inherits = "release"

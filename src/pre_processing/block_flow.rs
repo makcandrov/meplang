@@ -57,7 +57,7 @@ pub fn analyze_block_flow(
     contract_dependencies: &mut HashSet<usize>,
     compile_variables: &HashMap<String, Bytes>,
 ) -> Result<BlockFlow, pest::error::Error<Rule>> {
-    // log::info!("Analyzing flow block {}", r_block_with_attr.inner().name_str());
+    // tracing::info!("Analyzing flow block {}", r_block_with_attr.inner().name_str());
 
     let r_block = r_block_with_attr.inner();
 

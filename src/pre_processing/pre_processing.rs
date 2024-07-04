@@ -28,6 +28,7 @@ use crate::types::bytes32::Bytes32;
 pub struct Contract {
     pub blocks: Vec<Block>,
     pub name: String,
+    #[allow(unused)]
     pub last: bool,
 }
 
@@ -129,7 +130,7 @@ pub fn pre_process(
     let mut contracts_dependency_tree = DepsGraph::<usize>::new();
 
     while let Some(index_to_process) = contracts_queue.pop() {
-        // log::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
+        // tracing::info!("Pre-processing contract {}", &r_file.0[index_to_process].inner().name_str());
         contracts_dependency_tree.add_node_if_needed(&index_to_process);
         let (contract, dependencies) = pre_process_contract(
             input,
@@ -149,7 +150,7 @@ pub fn pre_process(
 
     for index in 0..r_file.0.len() {
         if contracts.get(&index).is_none() {
-            log::warn!(
+            tracing::warn!(
                 "{}",
                 new_error_from_located(
                     input,
@@ -310,7 +311,7 @@ pub fn pre_process_contract(
 
     for block_index in 0..r_contract.blocks.len() {
         if blocks_flow.get(&block_index).is_none() {
-            log::warn!(
+            tracing::warn!(
                 "{}",
                 new_error_from_located(
                     input,
@@ -454,7 +455,7 @@ fn pre_process_block(
     unique_dereferences: &mut HashSet<usize>,
     new_positions: &mut HashMap<usize, BlockPosition>,
 ) -> Result<Block, pest::error::Error<Rule>> {
-    // log::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
+    // tracing::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
 
     current_attributes.apply_many(block_attributes[index_to_process].clone());
 

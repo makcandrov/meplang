@@ -1,30 +1,6 @@
-use std::io::Write;
-
-use env_logger::fmt::Color;
-use log::{Level, LevelFilter};
 use meplang::*;
-
-fn init_env_logger() {
-    env_logger::builder()
-        .filter_level(LevelFilter::Info)
-        .format(|buf, record| {
-            let mut style = buf.style();
-            style
-                .set_color(match record.level() {
-                    Level::Info => Color::Green,
-                    Level::Warn => Color::Yellow,
-                    Level::Error => Color::Red,
-                    _ => Color::White,
-                })
-                .set_bold(true);
-            writeln!(
-                buf,
-                "{}",
-                style.value(format!("{}: {}", record.level(), record.args(),))
-            )
-        })
-        .init();
-}
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 const HELP_MESSAGE: &str = "\
 Usage: meplang <COMMAND>\n\n\
@@ -34,7 +10,11 @@ Commands:\n\
 ";
 
 fn main() {
-    init_env_logger();
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::filter::EnvFilter::from_default_env())
+        .init();
+
     let mut args = std::env::args();
     args.next();
 
@@ -55,65 +35,65 @@ fn main() {
                 match arg.as_str() {
                     "-c" | "-contract" => {
                         let Some(next) = args.next() else {
-                            log::error!("Expected an argument after `{}`.", arg);
+                            tracing::error!("Expected an argument after `{}`.", arg);
                             return;
                         };
                         if contract.replace(next).is_some() {
-                            log::error!("Contract name specified multiple times.");
+                            tracing::error!("Contract name specified multiple times.");
                             return;
                         }
                     },
                     "-i" | "-input" => {
                         let Some(next) = args.next() else {
-                            log::error!("Expected an argument after `{}`.", arg);
+                            tracing::error!("Expected an argument after `{}`.", arg);
                             return;
                         };
                         if input_file.replace(next).is_some() {
-                            log::error!("Input path specified multiple times.");
+                            tracing::error!("Input path specified multiple times.");
                             return;
                         }
                     },
                     "-o" | "-output" => {
                         let Some(next) = args.next() else {
-                            log::error!("Expected an argument after `{}`.", arg);
+                            tracing::error!("Expected an argument after `{}`.", arg);
                             return;
                         };
                         if output_file.replace(next).is_some() {
-                            log::error!("Output path specified multiple times.");
+                            tracing::error!("Output path specified multiple times.");
                             return;
                         }
                     },
                     "-s" | "-settings" => {
                         let Some(next) = args.next() else {
-                            log::error!("Expected an argument after `{}`.", arg);
+                            tracing::error!("Expected an argument after `{}`.", arg);
                             return;
                         };
                         let decoded: CompilerSettings = match serde_json::from_str(&next) {
                             Ok(decoded) => decoded,
                             Err(err) => {
-                                log::error!("Unable to decode compiler settings: {}", err);
+                                tracing::error!("Unable to decode compiler settings: {}", err);
                                 return;
                             },
                         };
                         if settings.replace(decoded).is_some() {
-                            log::error!("Compiler settings specified multiple times.");
+                            tracing::error!("Compiler settings specified multiple times.");
                             return;
                         }
                     },
                     _ => {
-                        log::error!("Unexpected argument `{}`.", &arg);
+                        tracing::error!("Unexpected argument `{}`.", &arg);
                         return;
                     },
                 }
             }
 
             let Some(contract) = contract else {
-                log::error!("Expected a contract name (-contract <CONTRACT_NAME>).");
+                tracing::error!("Expected a contract name (-contract <CONTRACT_NAME>).");
                 return;
             };
 
             let Some(input_file) = input_file else {
-                log::error!("Expected an input file (-input <CONTRACT_NAME>).");
+                tracing::error!("Expected an input file (-input <CONTRACT_NAME>).");
                 return;
             };
 
@@ -129,7 +109,7 @@ fn main() {
                                 return;
                             },
                             Err(err) => {
-                                log::error!("{}", err);
+                                tracing::error!("{}", err);
                                 return;
                             },
                         }
@@ -143,11 +123,11 @@ fn main() {
                     }
                 },
                 Err(err) => {
-                    log::error!("{}", err);
+                    tracing::error!("{}", err);
                     return;
                 },
             }
         },
-        _ => log::error!("Unexpected command `{}`", mode),
+        _ => tracing::error!("Unexpected command `{}`", mode),
     }
 }

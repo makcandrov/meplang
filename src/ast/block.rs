@@ -1,5 +1,5 @@
-use enum_impl::EnumImpl;
 use pest::iterators::Pair;
+use quick_impl::QuickImpl;
 
 use super::attribute::WithAttributes;
 use super::function::RFunction;
@@ -7,9 +7,9 @@ use super::variable::{RVariable, RVariableWithField};
 use super::RHexAlias;
 use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
-#[derive(Debug, Clone, EnumImpl)]
+#[derive(Debug, Clone, QuickImpl)]
 pub enum RBlockRefStar {
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     Variable(RVariable),
 }
 
@@ -24,11 +24,11 @@ impl FromPair for RBlockRefStar {
     }
 }
 
-#[derive(Debug, Clone, EnumImpl)]
+#[derive(Debug, Clone, QuickImpl)]
 pub enum RBlockRefEsp {
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     Variable(RVariable),
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     VariableWithField(RVariableWithField),
 }
 
@@ -44,11 +44,11 @@ impl FromPair for RBlockRefEsp {
     }
 }
 
-#[derive(Debug, Clone, EnumImpl)]
+#[derive(Debug, Clone, QuickImpl)]
 pub enum RBlockRef {
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     Star(RBlockRefStar),
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     Esp(RBlockRefEsp),
 }
 
@@ -70,13 +70,13 @@ impl FromPair for RBlockRef {
     }
 }
 
-#[derive(Debug, Clone, EnumImpl)]
+#[derive(Debug, Clone, QuickImpl)]
 pub enum RBlockItem {
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     Function(RFunction),
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     HexAlias(RHexAlias),
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     BlockRef(RBlockRef),
 }
 

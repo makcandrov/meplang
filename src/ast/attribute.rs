@@ -1,20 +1,20 @@
 use std::ops::Deref;
 
-use enum_impl::EnumImpl;
 use pest::iterators::Pair;
+use quick_impl::QuickImpl;
 
 use super::variable::RVariable;
 use super::{RCompileVariable, RHexLiteral, RStringLiteral};
 use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
 
-#[derive(Debug, Clone, EnumImpl)]
+#[derive(Debug, Clone, QuickImpl)]
 pub enum RAttributeEqualityRight {
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     HexLiteral(RHexLiteral),
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     CompileVariable(RCompileVariable),
-    #[enum_impl(impl from)]
-    StringLiteral(RStringLiteral),
+    #[quick_impl(impl From)]
+    StringLiteral(#[allow(unused)] RStringLiteral),
 }
 
 impl FromPair for RAttributeEqualityRight {
@@ -61,14 +61,14 @@ impl FromPair for RAttributeEquality {
     }
 }
 
-#[derive(Debug, Clone, EnumImpl)]
+#[derive(Debug, Clone, QuickImpl)]
 pub enum RAttributeArg {
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     AttributeEquality(RAttributeEquality),
-    #[enum_impl(impl from)]
+    #[quick_impl(impl From)]
     Variable(RVariable),
-    #[enum_impl(impl from)]
-    StringLiteral(RStringLiteral),
+    #[quick_impl(impl From)]
+    StringLiteral(#[allow(unused)] RStringLiteral),
 }
 
 impl FromPair for RAttributeArg {

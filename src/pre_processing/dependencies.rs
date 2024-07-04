@@ -45,7 +45,7 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
         assert!(self.insert_parent(item, dependency));
         if let Some(set) = self.children.get(dependency) {
             if set.len() > 0 {
-                self.leaves.remove(dependency);
+                self.leaves.swap_remove(dependency);
                 return res;
             }
         }
@@ -81,12 +81,12 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
     }
 
     fn insert_child(&mut self, parent: &T, child: &T) -> bool {
-        self.leaves.remove(parent);
+        self.leaves.swap_remove(parent);
         insert_or_create(&mut self.children, parent, child)
     }
 
     fn insert_parent(&mut self, parent: &T, child: &T) -> bool {
-        self.leaves.remove(child);
+        self.leaves.swap_remove(child);
         insert_or_create(&mut self.parents, child, parent)
     }
 }

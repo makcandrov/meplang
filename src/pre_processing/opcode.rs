@@ -32,6 +32,8 @@ pub const GASLIMIT: OpCode = 0x45;
 pub const CHAINID: OpCode = 0x46;
 pub const SELFBALANCE: OpCode = 0x47;
 pub const BASEFEE: OpCode = 0x48;
+pub const BLOBHASH: OpCode = 0x49;
+pub const BLOBBASEFEE: OpCode = 0x4a;
 
 // 0x50 range - 'storage' and execution.
 pub const POP: OpCode = 0x50;
@@ -46,6 +48,9 @@ pub const PC: OpCode = 0x58;
 pub const MSIZE: OpCode = 0x59;
 pub const GAS: OpCode = 0x5a;
 pub const JUMPDEST: OpCode = 0x5b;
+pub const TLOAD: OpCode = 0x5c;
+pub const TSTORE: OpCode = 0x5d;
+pub const MCOPY: OpCode = 0x5e;
 
 pub const PUSH0: OpCode = 0x5f;
 pub const PUSH1: OpCode = 0x60;
@@ -117,6 +122,8 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "chainid" => CHAINID,
         "selfbalance" => SELFBALANCE,
         "basefee" => BASEFEE,
+        "blobhash" => BLOBHASH,
+        "blobbasefee" => BLOBBASEFEE,
 
         // 0x50 range - 'storage' and execution.
         "pop" => POP,
@@ -131,6 +138,9 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "msize" => MSIZE,
         "gas" => GAS,
         "jumpdest" => JUMPDEST,
+        "tload" => TLOAD,
+        "tstore" => TSTORE,
+        "mcopy" => MCOPY,
 
         "push0" => PUSH0,
 
@@ -178,10 +188,6 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "log2" => 0xa2,
         "log3" => 0xa3,
         "log4" => 0xa4,
-
-        // 0xb0 range.
-        "tload" => 0xb3,
-        "tstore" => 0xb4,
 
         // 0xf0 range - closures.
         "create" => 0xf0,
