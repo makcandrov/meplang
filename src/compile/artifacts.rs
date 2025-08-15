@@ -16,7 +16,10 @@ pub struct Artifacts {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct ContractArtifacts {
     pub blocks: HashMap<String, BlockArtifacts>,
-    #[serde(serialize_with = "serialize_bytes", deserialize_with = "deserialize_bytes")]
+    #[serde(
+        serialize_with = "serialize_bytes",
+        deserialize_with = "deserialize_bytes"
+    )]
     pub bytecode: Bytes,
 }
 
@@ -33,16 +36,17 @@ impl Artifacts {
     }
 
     pub fn main_artifacts(&self) -> &ContractArtifacts {
-        &self.contracts.get(&self.main).unwrap()
+        self.contracts.get(&self.main).unwrap()
     }
 }
 
 impl ContractArtifacts {
     pub fn set_pc(&mut self, block_name: &str, pc: usize) {
-        assert!(self
-            .blocks
-            .insert(block_name.to_owned(), BlockArtifacts { pc, size: 0 })
-            .is_none());
+        assert!(
+            self.blocks
+                .insert(block_name.to_owned(), BlockArtifacts { pc, size: 0 })
+                .is_none()
+        );
     }
 
     pub fn set_size(&mut self, block_name: &str, end: usize) {

@@ -1,24 +1,23 @@
 use std::ops::Deref;
 
 use pest::iterators::Pair;
-use quick_impl::QuickImpl;
+use quick_impl::quick_impl_all;
 
 use super::variable::RVariable;
 use super::{RCompileVariable, RHexLiteral, RStringLiteral};
-use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
+use crate::parser::error::PestError;
+use crate::parser::parser::{FromPair, Located, Rule, get_next, map_unique_child};
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RAttributeEqualityRight {
-    #[quick_impl(impl From)]
     HexLiteral(RHexLiteral),
-    #[quick_impl(impl From)]
     CompileVariable(RCompileVariable),
-    #[quick_impl(impl From)]
     StringLiteral(#[allow(unused)] RStringLiteral),
 }
 
 impl FromPair for RAttributeEqualityRight {
-    fn from_pair(attribute_equality_right: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(attribute_equality_right: Pair<Rule>) -> Result<Self, PestError> {
         assert!(attribute_equality_right.as_rule() == Rule::attribute_equality_right);
 
         map_unique_child(attribute_equality_right, |inner| match inner.as_rule() {
@@ -43,7 +42,7 @@ impl RAttributeEquality {
 }
 
 impl FromPair for RAttributeEquality {
-    fn from_pair(attribute_equality: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(attribute_equality: Pair<Rule>) -> Result<Self, PestError> {
         assert!(attribute_equality.as_rule() == Rule::attribute_equality);
 
         let mut inner = attribute_equality.into_inner();
@@ -52,27 +51,27 @@ impl FromPair for RAttributeEquality {
 
         _ = get_next(&mut inner, Rule::eq);
 
-        let value =
-            Located::<RAttributeEqualityRight>::from_pair(get_next(&mut inner, Rule::attribute_equality_right))?;
+        let value = Located::<RAttributeEqualityRight>::from_pair(get_next(
+            &mut inner,
+            Rule::attribute_equality_right,
+        ))?;
 
-        assert!(inner.next() == None);
+        assert!(inner.next().is_none());
 
         Ok(Self { name, value })
     }
 }
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RAttributeArg {
-    #[quick_impl(impl From)]
     AttributeEquality(RAttributeEquality),
-    #[quick_impl(impl From)]
     Variable(RVariable),
-    #[quick_impl(impl From)]
     StringLiteral(#[allow(unused)] RStringLiteral),
 }
 
 impl FromPair for RAttributeArg {
-    fn from_pair(attribute_arg: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(attribute_arg: Pair<Rule>) -> Result<Self, PestError> {
         assert!(attribute_arg.as_rule() == Rule::attribute_arg);
 
         map_unique_child(attribute_arg, |inner| match inner.as_rule() {
@@ -97,7 +96,7 @@ impl RAttribute {
 }
 
 impl FromPair for RAttribute {
-    fn from_pair(attribute: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(attribute: Pair<Rule>) -> Result<Self, PestError> {
         assert!(attribute.as_rule() == Rule::attribute);
 
         let mut attribute_inner = attribute.into_inner();
@@ -113,7 +112,7 @@ impl FromPair for RAttribute {
             ))?);
 
             _ = get_next(&mut attribute_inner, Rule::close_paren);
-            assert!(attribute_inner.next() == None);
+            assert!(attribute_inner.next().is_none());
 
             Ok(Self { name, arg })
         } else {
@@ -129,7 +128,7 @@ pub struct WithAttributes<T> {
 }
 
 impl<T: FromPair> FromPair for WithAttributes<T> {
-    fn from_pair(item_with_attr: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(item_with_attr: Pair<Rule>) -> Result<Self, PestError> {
         let mut inner = item_with_attr.into_inner();
 
         let mut attributes = Vec::<Located<RAttribute>>::new();
@@ -137,15 +136,15 @@ impl<T: FromPair> FromPair for WithAttributes<T> {
             match attr_or_item.as_rule() {
                 Rule::attribute => {
                     attributes.push(Located::<RAttribute>::from_pair(attr_or_item)?);
-                },
+                }
                 _ => {
                     let attr_inner = T::from_pair(attr_or_item)?;
-                    assert!(inner.next() == None);
+                    assert!(inner.next().is_none());
                     return Ok(Self {
                         attributes,
                         inner: attr_inner,
                     });
-                },
+                }
             }
         }
         unreachable!()

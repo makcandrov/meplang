@@ -42,7 +42,7 @@ fn main() {
                             tracing::error!("Contract name specified multiple times.");
                             return;
                         }
-                    },
+                    }
                     "-i" | "-input" => {
                         let Some(next) = args.next() else {
                             tracing::error!("Expected an argument after `{}`.", arg);
@@ -52,7 +52,7 @@ fn main() {
                             tracing::error!("Input path specified multiple times.");
                             return;
                         }
-                    },
+                    }
                     "-o" | "-output" => {
                         let Some(next) = args.next() else {
                             tracing::error!("Expected an argument after `{}`.", arg);
@@ -62,7 +62,7 @@ fn main() {
                             tracing::error!("Output path specified multiple times.");
                             return;
                         }
-                    },
+                    }
                     "-s" | "-settings" => {
                         let Some(next) = args.next() else {
                             tracing::error!("Expected an argument after `{}`.", arg);
@@ -73,17 +73,17 @@ fn main() {
                             Err(err) => {
                                 tracing::error!("Unable to decode compiler settings: {}", err);
                                 return;
-                            },
+                            }
                         };
                         if settings.replace(decoded).is_some() {
                             tracing::error!("Compiler settings specified multiple times.");
                             return;
                         }
-                    },
+                    }
                     _ => {
                         tracing::error!("Unexpected argument `{}`.", &arg);
                         return;
-                    },
+                    }
                 }
             }
 
@@ -97,37 +97,40 @@ fn main() {
                 return;
             };
 
-            match compile_file(input_file.as_str(), contract.as_str(), settings.unwrap_or_default()) {
+            match compile_file(
+                input_file.as_str(),
+                contract.as_str(),
+                settings.unwrap_or_default(),
+            ) {
                 Ok(artifacts) => {
                     if let Some(output_file) = output_file {
-                        match std::fs::write(&output_file, serde_json::to_string_pretty(&artifacts).unwrap()) {
+                        match std::fs::write(
+                            &output_file,
+                            serde_json::to_string_pretty(&artifacts).unwrap(),
+                        ) {
                             Ok(()) => {
                                 println!(
                                     "Contract `{}` bytecode written in the file `{}`.",
                                     contract, output_file
                                 );
-                                return;
-                            },
+                            }
                             Err(err) => {
                                 tracing::error!("{}", err);
-                                return;
-                            },
+                            }
                         }
                     } else {
                         println!(
-                            "Contract `{}` bytecode: {}",
+                            "Contract `{}` bytecode: 0x{}",
                             contract,
-                            format!("0x{}", hex::encode(artifacts.main_bytecode()))
+                            hex::encode(artifacts.main_bytecode())
                         );
-                        return;
                     }
-                },
+                }
                 Err(err) => {
                     tracing::error!("{}", err);
-                    return;
-                },
+                }
             }
-        },
+        }
         _ => tracing::error!("Unexpected command `{}`", mode),
     }
 }

@@ -5,20 +5,17 @@ use bytes::Bytes;
 
 use super::attribute::Attribute;
 use super::block_flow::{
-    analyze_block_flow,
-    is_function_name,
-    BlockFlow,
-    BlockFlowBlockRef,
-    BlockFlowItem,
-    BlockFlowPush,
-    BlockFlowPushInner,
+    BlockFlow, BlockFlowBlockRef, BlockFlowItem, BlockFlowPush, BlockFlowPushInner,
+    analyze_block_flow, is_function_name,
 };
 use super::opcode::str_to_op;
 use super::queue::PersistentDedupQueue;
 use super::remapping::remap_contracts;
 use crate::ast::*;
-use crate::parser::error::{new_error_from_located, new_error_from_location, new_generic_error};
-use crate::parser::parser::{Located, Rule};
+use crate::parser::error::{
+    PestError, new_error_from_located, new_error_from_location, new_generic_error,
+};
+use crate::parser::parser::Located;
 use crate::pre_processing::attribute::Attributes;
 use crate::pre_processing::dependencies::DepsGraph;
 use crate::pre_processing::remapping::remap_blocks;
@@ -79,8 +76,15 @@ pub struct Push {
 #[derive(Clone, Debug)]
 pub enum PushInner {
     Constant(Bytes32),
-    BlockSize { index: usize, start: usize, end: usize },
-    BlockPc { index: usize, line: usize },
+    BlockSize {
+        index: usize,
+        start: usize,
+        end: usize,
+    },
+    BlockPc {
+        index: usize,
+        line: usize,
+    },
 }
 
 pub fn pre_process(
@@ -88,25 +92,31 @@ pub fn pre_process(
     r_file: RFile,
     contract_name: &str,
     compile_variables: &HashMap<String, Bytes>,
-) -> Result<Vec<Contract>, pest::error::Error<Rule>> {
+) -> Result<Vec<Contract>, PestError> {
     let mut main_index: Option<usize> = None;
     let mut contract_names = HashMap::<String, usize>::new();
     let mut contract_attributes = vec![Attributes::default(); r_file.0.len()];
 
-    for contract_index in 0..r_file.0.len() {
-        let r_contract_with_attr = &r_file.0[contract_index];
+    for (contract_index, r_contract_with_attr) in r_file.0.iter().enumerate() {
         for r_attribute in &r_contract_with_attr.attributes {
             let attribute = Attribute::from_r_attribute(input, r_attribute, compile_variables)?;
             if attribute.is_contract_attribute() {
                 contract_attributes[contract_index].apply(attribute);
             } else {
-                return Err(new_error_from_located(input, r_attribute, "Invalid contract attribute"));
+                return Err(new_error_from_located(
+                    input,
+                    r_attribute,
+                    "Invalid contract attribute",
+                ));
             }
         }
 
         let r_contract = &r_contract_with_attr.inner().inner;
         let name = r_contract.name_str();
-        if contract_names.insert(name.to_owned(), contract_names.len()).is_some() {
+        if contract_names
+            .insert(name.to_owned(), contract_names.len())
+            .is_some()
+        {
             return Err(new_error_from_located(
                 input,
                 &r_contract.name,
@@ -120,7 +130,10 @@ pub fn pre_process(
     }
 
     let Some(main_index) = main_index else {
-        return Err(new_generic_error(format!("Contract `{}` not found", contract_name)));
+        return Err(new_generic_error(format!(
+            "Contract `{}` not found",
+            contract_name
+        )));
     };
 
     let mut contracts = HashMap::<usize, Contract>::new();
@@ -149,7 +162,7 @@ pub fn pre_process(
     }
 
     for index in 0..r_file.0.len() {
-        if contracts.get(&index).is_none() {
+        if !contracts.contains_key(&index) {
             tracing::warn!(
                 "{}",
                 new_error_from_located(
@@ -167,7 +180,9 @@ pub fn pre_process(
     }
 
     if !contracts_dependency_tree.is_empty() {
-        return Err(new_generic_error("Recursive contracts unhandled".to_owned()));
+        return Err(new_generic_error(
+            "Recursive contracts unhandled".to_owned(),
+        ));
     }
 
     remapping_indexes.reverse();
@@ -181,10 +196,15 @@ pub fn pre_process_contract(
     default_attributes: &Attributes,
     contract_names: &HashMap<String, usize>,
     compile_variables: &HashMap<String, Bytes>,
-) -> Result<(Contract, HashSet<usize>), pest::error::Error<Rule>> {
+) -> Result<(Contract, HashSet<usize>), PestError> {
     let r_contract = &r_contract_with_attr.inner.inner;
 
-    let constants = extract_constants(input, &r_contract.constants, contract_names, compile_variables)?;
+    let constants = extract_constants(
+        input,
+        &r_contract.constants,
+        contract_names,
+        compile_variables,
+    )?;
 
     let mut block_attributes = vec![Vec::<Attribute>::new(); r_contract.blocks.len()];
 
@@ -194,8 +214,7 @@ pub fn pre_process_contract(
 
     let mut blocks_queue = PersistentDedupQueue::<usize>::new();
 
-    for block_index in 0..r_contract.blocks.len() {
-        let r_block_with_attr = &r_contract.blocks[block_index];
+    for (block_index, r_block_with_attr) in r_contract.blocks.iter().enumerate() {
         for r_attribute in &r_block_with_attr.attributes {
             let attribute = Attribute::from_r_attribute(input, r_attribute, compile_variables)?;
             if !r_block_with_attr.inner().abstr {
@@ -223,18 +242,20 @@ pub fn pre_process_contract(
                         block_attributes[block_index].push(attribute);
                     }
                 } else {
-                    return Err(new_error_from_located(input, r_attribute, "Invalid block attribute."));
-                }
-            } else {
-                if attribute.is_abstract_block_attribute() {
-                    block_attributes[block_index].push(attribute);
-                } else {
                     return Err(new_error_from_located(
                         input,
                         r_attribute,
-                        "Invalid abstract block attribute.",
+                        "Invalid block attribute.",
                     ));
                 }
+            } else if attribute.is_abstract_block_attribute() {
+                block_attributes[block_index].push(attribute);
+            } else {
+                return Err(new_error_from_located(
+                    input,
+                    r_attribute,
+                    "Invalid abstract block attribute.",
+                ));
             }
         }
 
@@ -243,7 +264,9 @@ pub fn pre_process_contract(
 
         if contract_names.contains_key(block_name)
             || constants.contains_key(block_name)
-            || block_names.insert(block_name.to_owned(), block_names.len()).is_some()
+            || block_names
+                .insert(block_name.to_owned(), block_names.len())
+                .is_some()
         {
             return Err(new_error_from_located(
                 input,
@@ -275,8 +298,11 @@ pub fn pre_process_contract(
     let Some(main_index) = main_index else {
         return Err(new_error_from_located(
             input,
-            &r_contract,
-            &format!("Block `main` not found in contract `{}`", r_contract.name_str()),
+            r_contract,
+            &format!(
+                "Block `main` not found in contract `{}`",
+                r_contract.name_str()
+            ),
         ));
     };
     blocks_queue.insert_if_needed(main_index);
@@ -291,7 +317,7 @@ pub fn pre_process_contract(
             input,
             &r_contract.blocks[index_to_process],
             &constants,
-            &contract_names,
+            contract_names,
             &block_names,
             &mut contract_dependencies,
             compile_variables,
@@ -310,13 +336,16 @@ pub fn pre_process_contract(
     let blocks_flow = blocks_flow;
 
     for block_index in 0..r_contract.blocks.len() {
-        if blocks_flow.get(&block_index).is_none() {
+        if !blocks_flow.contains_key(&block_index) {
             tracing::warn!(
                 "{}",
                 new_error_from_located(
                     input,
                     &r_contract.blocks[block_index],
-                    &format!("Unused block `{}`", &r_contract.blocks[block_index].inner().name_str())
+                    &format!(
+                        "Unused block `{}`",
+                        &r_contract.blocks[block_index].inner().name_str()
+                    )
                 )
             );
         }
@@ -376,7 +405,7 @@ pub fn extract_constants(
     r_constants: &Vec<Located<RConstant>>,
     contract_names: &HashMap<String, usize>,
     compile_variables: &HashMap<String, Bytes>,
-) -> Result<HashMap<String, Bytes>, pest::error::Error<Rule>> {
+) -> Result<HashMap<String, Bytes>, PestError> {
     let mut constants = HashMap::<String, Bytes>::new();
 
     for r_constant in r_constants {
@@ -385,12 +414,14 @@ pub fn extract_constants(
         let value = match &r_constant.value.inner {
             RConstantArg::HexLiteral(hex_literal) => hex_literal.0.clone(),
             RConstantArg::CompileVariable(compile_variable) => {
-                get_compile_variable_value(input, &compile_variable, compile_variables)?.clone()
-            },
+                get_compile_variable_value(input, compile_variable, compile_variables)?.clone()
+            }
         };
 
         if contract_names.contains_key(constant_name)
-            || constants.insert(constant_name.to_owned(), value.clone()).is_some()
+            || constants
+                .insert(constant_name.to_owned(), value.clone())
+                .is_some()
         {
             return Err(new_error_from_located(
                 input,
@@ -403,7 +434,7 @@ pub fn extract_constants(
             return Err(new_error_from_located(
                 input,
                 &r_constant.name,
-                &format!("Invalid constant name."),
+                "Invalid constant name.",
             ));
         }
     }
@@ -443,6 +474,7 @@ impl BlockPreProcessingContext {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn pre_process_block(
     input: &str,
     index_to_process: usize,
@@ -454,7 +486,7 @@ fn pre_process_block(
     block_attributes: &Vec<Vec<Attribute>>,
     unique_dereferences: &mut HashSet<usize>,
     new_positions: &mut HashMap<usize, BlockPosition>,
-) -> Result<Block, pest::error::Error<Rule>> {
+) -> Result<Block, PestError> {
     // tracing::info!("Pre-processing block {}", &r_blocks[index_to_process].inner().name_str());
 
     current_attributes.apply_many(block_attributes[index_to_process].clone());
@@ -468,15 +500,20 @@ fn pre_process_block(
             BlockFlowItem::Bytes(bytes) => items.push(BlockItemInner::Bytes(bytes.clone()).into()),
             BlockFlowItem::Contract(contract_index) => {
                 items.push(BlockItemInner::Contract(*contract_index).into());
-            },
+            }
             BlockFlowItem::Push(BlockFlowPush { attributes, inner }) => {
                 current_attributes.apply_many(attributes.clone());
                 items.push(
                     BlockItemInner::Push(Push {
                         attributes: current_attributes.clone(),
                         inner: match inner {
-                            BlockFlowPushInner::Constant(bytes) => PushInner::Constant(bytes.clone()),
-                            BlockFlowPushInner::BlockPc(index) => PushInner::BlockPc { index: *index, line: 0 },
+                            BlockFlowPushInner::Constant(bytes) => {
+                                PushInner::Constant(bytes.clone())
+                            }
+                            BlockFlowPushInner::BlockPc(index) => PushInner::BlockPc {
+                                index: *index,
+                                line: 0,
+                            },
                             BlockFlowPushInner::BlockSize(index) => PushInner::BlockSize {
                                 index: *index,
                                 start: 0,
@@ -486,7 +523,7 @@ fn pre_process_block(
                     })
                     .into(),
                 );
-            },
+            }
             BlockFlowItem::BlockEsp(BlockFlowBlockRef {
                 index: block_index,
                 location,
@@ -496,7 +533,7 @@ fn pre_process_block(
                 if !r_blocks[*block_index].inner().abstr {
                     return Err(new_error_from_location(
                         input,
-                        &location,
+                        location,
                         "Use the `*` to refer to a non abstract block.",
                     ));
                 }
@@ -504,7 +541,7 @@ fn pre_process_block(
                 if parents.contains(block_index) {
                     return Err(new_error_from_location(
                         input,
-                        &location,
+                        location,
                         "Recursive block references unhandled",
                     ));
                 }
@@ -525,10 +562,11 @@ fn pre_process_block(
                     unique_dereferences,
                     new_positions,
                 )?;
-                parents.remove(&block_index);
+                parents.remove(block_index);
                 items.append(&mut sub_items);
-                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
-            },
+                current_attributes
+                    .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
+            }
             BlockFlowItem::BlockStar(BlockFlowBlockRef {
                 index: block_index,
                 location,
@@ -538,7 +576,7 @@ fn pre_process_block(
                 if context.inside_abstract {
                     return Err(new_error_from_location(
                         input,
-                        &location,
+                        location,
                         "Cannot refer to non-abstract block inside an abstract block.",
                     ));
                 }
@@ -546,7 +584,7 @@ fn pre_process_block(
                 if r_blocks[*block_index].inner().abstr {
                     return Err(new_error_from_location(
                         input,
-                        &location,
+                        location,
                         "Use the `&` to refer to an abstract block.",
                     ));
                 }
@@ -554,7 +592,7 @@ fn pre_process_block(
                 if unique_dereferences.contains(block_index) {
                     return Err(new_error_from_location(
                         input,
-                        &location,
+                        location,
                         "This non-abtrsact block has already been dereferenced once.",
                     ));
                 }
@@ -568,7 +606,7 @@ fn pre_process_block(
                 if parents.contains(block_index) {
                     return Err(new_error_from_location(
                         input,
-                        &location,
+                        location,
                         "Recursive block references unhandled",
                     ));
                 }
@@ -589,12 +627,17 @@ fn pre_process_block(
                     unique_dereferences,
                     new_positions,
                 )?;
-                parents.remove(&block_index);
-                sub_items.first_mut().unwrap().start_names.push(name.clone());
+                parents.remove(block_index);
+                sub_items
+                    .first_mut()
+                    .unwrap()
+                    .start_names
+                    .push(name.clone());
                 sub_items.last_mut().unwrap().end_names.push(name);
                 items.append(&mut sub_items);
-                current_attributes.apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
-            },
+                current_attributes
+                    .apply_many(blocks_flow.get(block_index).unwrap().end_attributes.clone());
+            }
         }
     }
 
@@ -625,13 +668,15 @@ pub fn get_compile_variable_value<'a>(
     input: &'_ str,
     compile_variable: &'_ RCompileVariable,
     compile_variables: &'a HashMap<String, Bytes>,
-) -> Result<&'a Bytes, pest::error::Error<Rule>> {
+) -> Result<&'a Bytes, PestError> {
     let name = compile_variable.as_str();
     let Some(bytes) = compile_variables.get(name) else {
         return Err(new_error_from_located(
             input,
             &compile_variable.0,
-            &format!("Missing compile time variable {name}. Please specify it in the compiler settings."),
+            &format!(
+                "Missing compile time variable {name}. Please specify it in the compiler settings."
+            ),
         ));
     };
     Ok(bytes)

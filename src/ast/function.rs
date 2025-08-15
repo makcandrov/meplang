@@ -1,22 +1,21 @@
 use pest::iterators::Pair;
-use quick_impl::QuickImpl;
+use quick_impl::quick_impl_all;
 
 use super::variable::{RVariable, RVariableWithField};
 use super::{RConcatenation, RHexAlias};
-use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
+use crate::parser::error::PestError;
+use crate::parser::parser::{FromPair, Located, Rule, get_next, map_unique_child};
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RFunctionArg {
-    #[quick_impl(impl From)]
     VariableWithField(RVariableWithField),
-    #[quick_impl(impl From)]
     VariablesConcat(RConcatenation),
-    #[quick_impl(impl From)]
     HexAlias(RHexAlias),
 }
 
 impl FromPair for RFunctionArg {
-    fn from_pair(function_arg: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(function_arg: Pair<Rule>) -> Result<Self, PestError> {
         assert!(function_arg.as_rule() == Rule::function_arg);
 
         map_unique_child(function_arg, |child| match child.as_rule() {
@@ -35,7 +34,7 @@ pub struct RFunction {
 }
 
 impl FromPair for RFunction {
-    fn from_pair(function: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(function: Pair<Rule>) -> Result<Self, PestError> {
         assert!(function.as_rule() == Rule::function);
 
         let mut function_inner = function.into_inner();
@@ -44,10 +43,11 @@ impl FromPair for RFunction {
 
         _ = get_next(&mut function_inner, Rule::open_paren);
 
-        let arg = Located::<RFunctionArg>::from_pair(get_next(&mut function_inner, Rule::function_arg))?;
+        let arg =
+            Located::<RFunctionArg>::from_pair(get_next(&mut function_inner, Rule::function_arg))?;
 
         _ = get_next(&mut function_inner, Rule::close_paren);
-        assert!(function_inner.next() == None);
+        assert!(function_inner.next().is_none());
 
         Ok(Self { name, arg })
     }

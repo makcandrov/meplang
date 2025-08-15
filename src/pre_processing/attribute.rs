@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
 use bytes::Bytes;
-use quick_impl::QuickImpl;
+use quick_impl::quick_impl_all;
 
 use super::opcode::*;
 use super::pre_processing::get_compile_variable_value;
 use crate::ast::{RAttribute, RAttributeArg, RAttributeEqualityRight};
-use crate::parser::error::new_error_from_located;
-use crate::parser::parser::{Located, Rule};
+use crate::parser::error::{PestError, new_error_from_located};
+use crate::parser::parser::Located;
 use crate::types::bytes32::Bytes32;
 
 #[rustfmt::skip]
@@ -20,20 +20,13 @@ const fn is_assumable_opcode(op: OpCode) -> bool {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, QuickImpl)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[quick_impl_all(pub const is)]
 pub enum Attribute {
-    Assume {
-        op: u8,
-        v: Bytes32,
-    },
-    ClearAssume {
-        op: u8,
-    },
-    #[quick_impl(pub is)]
+    Assume { op: u8, v: Bytes32 },
+    ClearAssume { op: u8 },
     Keep,
-    #[quick_impl(pub is)]
     Main,
-    #[quick_impl(pub is)]
     Last,
     Optimization(bool),
 }
@@ -52,25 +45,24 @@ impl Attribute {
     }
 
     pub fn is_block_item_attribute(&self) -> bool {
-        match self {
-            Self::Assume { op: _, v: _ } => true,
-            Self::ClearAssume { op: _ } => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::Assume { op: _, v: _ } | Self::ClearAssume { op: _ }
+        )
     }
 
     pub fn from_r_attribute(
         input: &str,
         r_attribute: &Located<RAttribute>,
         compile_variables: &HashMap<String, Bytes>,
-    ) -> Result<Self, pest::error::Error<Rule>> {
+    ) -> Result<Self, PestError> {
         let name = r_attribute.name_str();
         match name {
             "assume" => {
                 let Some(arg) = &r_attribute.arg else {
                     return Err(new_error_from_located(
                         input,
-                        &r_attribute,
+                        r_attribute,
                         "Argument required after `assume` attribute - ex: #[assume(msize = 0x20)]",
                     ));
                 };
@@ -78,7 +70,7 @@ impl Attribute {
                 let RAttributeArg::AttributeEquality(eq) = &arg.inner else {
                     return Err(new_error_from_located(
                         input,
-                        &r_attribute,
+                        r_attribute,
                         "Expected equality - ex: #[assume(msize = 0x20)]",
                     ));
                 };
@@ -86,13 +78,16 @@ impl Attribute {
                 let bytes = match &eq.value.inner {
                     RAttributeEqualityRight::HexLiteral(hex_literal) => hex_literal.0.clone(),
                     RAttributeEqualityRight::CompileVariable(compile_variable) => {
-                        get_compile_variable_value(input, compile_variable, compile_variables)?.clone()
-                    },
-                    _ => return Err(new_error_from_located(
-                        input,
-                        &eq.value,
-                        "Expected: \n hex literal - ex: #[assume(msize = 0x20)] \n or compile variable - ex: #[assume(chainid = $CHAINID$)]",
-                    )),
+                        get_compile_variable_value(input, compile_variable, compile_variables)?
+                            .clone()
+                    }
+                    _ => {
+                        return Err(new_error_from_located(
+                            input,
+                            &eq.value,
+                            "Expected: \n hex literal - ex: #[assume(msize = 0x20)] \n or compile variable - ex: #[assume(chainid = $CHAINID$)]",
+                        ));
+                    }
                 };
 
                 if bytes.len() > 32 {
@@ -113,19 +108,27 @@ impl Attribute {
 
                 if is_assumable_opcode(op) {
                     let Some(formatted) = Bytes32::from_bytes(&bytes, true) else {
-                        return Err(new_error_from_located(input, &eq.name, "Literal exceeds 32 bytes."));
+                        return Err(new_error_from_located(
+                            input,
+                            &eq.name,
+                            "Literal exceeds 32 bytes.",
+                        ));
                     };
 
                     Ok(Self::Assume { op, v: formatted })
                 } else {
-                    Err(new_error_from_located(input, &eq.name, "Cannot assume this opcode"))
+                    Err(new_error_from_located(
+                        input,
+                        &eq.name,
+                        "Cannot assume this opcode",
+                    ))
                 }
-            },
+            }
             "clear_assume" => {
                 let Some(arg) = &r_attribute.arg else {
                     return Err(new_error_from_located(
                         input,
-                        &r_attribute,
+                        r_attribute,
                         "Argument required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
                     ));
                 };
@@ -133,7 +136,7 @@ impl Attribute {
                 let RAttributeArg::Variable(var) = &arg.inner else {
                     return Err(new_error_from_located(
                         input,
-                        &r_attribute,
+                        r_attribute,
                         "Opcode name required after `clear_assume` attribute - ex: #[clear_assume(returndatasize)]",
                     ));
                 };
@@ -141,7 +144,7 @@ impl Attribute {
                 let Some(op) = str_to_op(&var.as_str().to_lowercase()) else {
                     return Err(new_error_from_located(
                         input,
-                        &arg,
+                        arg,
                         &format!("Unknown opcode `{}`", var.as_str()),
                     ));
                 };
@@ -149,9 +152,13 @@ impl Attribute {
                 if is_assumable_opcode(op) {
                     Ok(Self::ClearAssume { op })
                 } else {
-                    Err(new_error_from_located(input, arg, "Cannot assume this opcode"))
+                    Err(new_error_from_located(
+                        input,
+                        arg,
+                        "Cannot assume this opcode",
+                    ))
                 }
-            },
+            }
             "enable_optimization" => Ok(Self::Optimization(true)),
             "disable_optimization" => Ok(Self::Optimization(false)),
             "keep" => Ok(Self::Keep),
@@ -186,10 +193,10 @@ impl Attributes {
         match attribute {
             Attribute::Assume { op, v } => {
                 self.assumes.insert(op, v);
-            },
+            }
             Attribute::ClearAssume { op } => {
                 self.assumes.remove(&op);
-            },
+            }
             Attribute::Optimization(enabled) => self.optimization = enabled,
             _ => (),
         }

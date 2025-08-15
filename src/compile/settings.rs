@@ -39,7 +39,10 @@ impl CompilerSettings {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub enum FillingPatern {
     Random,
-    #[serde(serialize_with = "serialize_bytes", deserialize_with = "deserialize_bytes")]
+    #[serde(
+        serialize_with = "serialize_bytes",
+        deserialize_with = "deserialize_bytes"
+    )]
     Repeat(Bytes),
 }
 
@@ -101,6 +104,10 @@ where
     Ok(res)
 }
 
+const fn bool_true() -> bool {
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -108,11 +115,8 @@ mod tests {
     #[test]
     pub fn test_serialize() {
         let settings: CompilerSettings =
-            serde_json::from_str("{\"push0\": true, \"fillingPattern\": {\"repeat\": \"0x11\"}}").unwrap();
+            serde_json::from_str("{\"push0\": true, \"fillingPattern\": {\"repeat\": \"0x11\"}}")
+                .unwrap();
         dbg!(&settings);
     }
-}
-
-fn bool_true() -> bool {
-    true
 }

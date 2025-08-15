@@ -28,12 +28,12 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
 
     pub fn add_node_if_needed(&mut self, item: &T) {
         if let Some(set) = self.children.get(item) {
-            if set.len() > 0 {
+            if !set.is_empty() {
                 return;
             }
         }
         if let Some(set) = self.parents.get(item) {
-            if set.len() > 0 {
+            if !set.is_empty() {
                 return;
             }
         }
@@ -44,7 +44,7 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
         let res = self.insert_child(item, dependency);
         assert!(self.insert_parent(item, dependency));
         if let Some(set) = self.children.get(dependency) {
-            if set.len() > 0 {
+            if !set.is_empty() {
                 self.leaves.swap_remove(dependency);
                 return res;
             }
@@ -54,10 +54,8 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
     }
 
     pub fn pop_leaf(&mut self) -> Option<T> {
-        let Some(leaf) = self.leaves.pop() else {
-            return None;
-        };
-        assert!(self.children.get(&leaf).is_none());
+        let leaf = self.leaves.pop()?;
+        assert!(!self.children.contains_key(&leaf));
         if let Some(parents) = self.parents.remove(&leaf) {
             for parent in parents {
                 let set = self.children.get_mut(&parent).unwrap();
@@ -104,5 +102,5 @@ where
         return false;
     }
     set.insert(y.clone());
-    return true;
+    true
 }

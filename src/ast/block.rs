@@ -1,20 +1,21 @@
 use pest::iterators::Pair;
-use quick_impl::QuickImpl;
+use quick_impl::quick_impl_all;
 
+use super::RHexAlias;
 use super::attribute::WithAttributes;
 use super::function::RFunction;
 use super::variable::{RVariable, RVariableWithField};
-use super::RHexAlias;
-use crate::parser::parser::{get_next, map_unique_child, FromPair, Located, Rule};
+use crate::parser::error::PestError;
+use crate::parser::parser::{FromPair, Located, Rule, get_next, map_unique_child};
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RBlockRefStar {
-    #[quick_impl(impl From)]
     Variable(RVariable),
 }
 
 impl FromPair for RBlockRefStar {
-    fn from_pair(block_ref_star: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_ref_star: Pair<Rule>) -> Result<Self, PestError> {
         assert!(block_ref_star.as_rule() == Rule::block_ref_star);
 
         map_unique_child(block_ref_star, |child| match child.as_rule() {
@@ -24,16 +25,15 @@ impl FromPair for RBlockRefStar {
     }
 }
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RBlockRefEsp {
-    #[quick_impl(impl From)]
     Variable(RVariable),
-    #[quick_impl(impl From)]
     VariableWithField(RVariableWithField),
 }
 
 impl FromPair for RBlockRefEsp {
-    fn from_pair(block_ref_esp: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_ref_esp: Pair<Rule>) -> Result<Self, PestError> {
         assert!(block_ref_esp.as_rule() == Rule::block_ref_esp);
 
         map_unique_child(block_ref_esp, |child| match child.as_rule() {
@@ -44,16 +44,15 @@ impl FromPair for RBlockRefEsp {
     }
 }
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RBlockRef {
-    #[quick_impl(impl From)]
     Star(RBlockRefStar),
-    #[quick_impl(impl From)]
     Esp(RBlockRefEsp),
 }
 
 impl FromPair for RBlockRef {
-    fn from_pair(block_ref: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_ref: Pair<Rule>) -> Result<Self, PestError> {
         assert!(block_ref.as_rule() == Rule::block_ref);
 
         let mut inner = block_ref.into_inner();
@@ -70,18 +69,16 @@ impl FromPair for RBlockRef {
     }
 }
 
-#[derive(Debug, Clone, QuickImpl)]
+#[derive(Debug, Clone)]
+#[quick_impl_all(impl From)]
 pub enum RBlockItem {
-    #[quick_impl(impl From)]
     Function(RFunction),
-    #[quick_impl(impl From)]
     HexAlias(RHexAlias),
-    #[quick_impl(impl From)]
     BlockRef(RBlockRef),
 }
 
 impl FromPair for RBlockItem {
-    fn from_pair(block_item: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_item: Pair<Rule>) -> Result<Self, PestError> {
         assert!(block_item.as_rule() == Rule::block_item);
 
         map_unique_child(block_item, |child| match child.as_rule() {
@@ -107,7 +104,7 @@ impl RBlock {
 }
 
 impl FromPair for RBlock {
-    fn from_pair(block_decl: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(block_decl: Pair<Rule>) -> Result<Self, PestError> {
         assert!(block_decl.as_rule() == Rule::block_decl);
 
         let mut block_decl_inner = block_decl.into_inner();
@@ -117,11 +114,12 @@ impl FromPair for RBlock {
             Rule::abstract_keyword => {
                 _ = get_next(&mut block_decl_inner, Rule::block_keyword);
                 true
-            },
+            }
             _ => unreachable!(),
         };
 
-        let name = Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
+        let name =
+            Located::<RVariable>::from_pair(get_next(&mut block_decl_inner, Rule::variable))?;
 
         _ = get_next(&mut block_decl_inner, Rule::open_brace);
 
@@ -132,11 +130,11 @@ impl FromPair for RBlock {
                     items.push(Located::<WithAttributes<Located<RBlockItem>>>::from_pair(
                         block_item_with_attr,
                     )?);
-                },
+                }
                 Rule::close_brace => {
-                    assert!(block_decl_inner.next() == None);
+                    assert!(block_decl_inner.next().is_none());
                     return Ok(RBlock { name, abstr, items });
-                },
+                }
                 _ => unreachable!(),
             }
         }

@@ -1,8 +1,8 @@
 use bytes::Bytes;
 use pest::iterators::Pair;
 
-use crate::parser::error::new_error_from_pair;
-use crate::parser::parser::{map_unique_child, FromPair, Rule};
+use crate::parser::error::{PestError, new_error_from_pair};
+use crate::parser::parser::{FromPair, Rule, map_unique_child};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RHexLiteral(pub Bytes);
@@ -14,7 +14,7 @@ impl From<Bytes> for RHexLiteral {
 }
 
 impl FromPair for RHexLiteral {
-    fn from_pair(hex_literal: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(hex_literal: Pair<Rule>) -> Result<Self, PestError> {
         assert!(hex_literal.as_rule() == Rule::hex_literal);
 
         if hex_literal.as_str().len() % 2 != 0 {
@@ -41,7 +41,7 @@ impl From<String> for RStringLiteral {
 }
 
 impl FromPair for RStringLiteral {
-    fn from_pair(string_literal: Pair<Rule>) -> Result<Self, pest::error::Error<Rule>> {
+    fn from_pair(string_literal: Pair<Rule>) -> Result<Self, PestError> {
         assert!(string_literal.as_rule() == Rule::string_literal);
 
         Ok(map_unique_child(string_literal, |string_inner| {
