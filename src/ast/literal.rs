@@ -17,7 +17,7 @@ impl FromPair for RHexLiteral {
     fn from_pair(hex_literal: Pair<Rule>) -> Result<Self, PestError> {
         assert!(hex_literal.as_rule() == Rule::hex_literal);
 
-        if hex_literal.as_str().len() % 2 != 0 {
+        if !hex_literal.as_str().len().is_multiple_of(2) {
             return Err(new_error_from_pair(
                 &hex_literal,
                 "Hex literals must be odd size.".to_owned(),

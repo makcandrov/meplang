@@ -6,10 +6,10 @@ pub fn fill_with_random(bytes: &mut BytesMut, n: usize) {
     for i in (0..n).rev() {
         bytes.put_u8(loop {
             let op: u8 = rand::random();
-            if let Some(push_length) = push_length(op) {
-                if push_length > i {
-                    continue;
-                }
+            if let Some(push_length) = push_length(op)
+                && push_length > i
+            {
+                continue;
             }
             break op;
         });

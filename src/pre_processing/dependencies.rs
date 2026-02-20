@@ -27,15 +27,15 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
     }
 
     pub fn add_node_if_needed(&mut self, item: &T) {
-        if let Some(set) = self.children.get(item) {
-            if !set.is_empty() {
-                return;
-            }
+        if let Some(set) = self.children.get(item)
+            && !set.is_empty()
+        {
+            return;
         }
-        if let Some(set) = self.parents.get(item) {
-            if !set.is_empty() {
-                return;
-            }
+        if let Some(set) = self.parents.get(item)
+            && !set.is_empty()
+        {
+            return;
         }
         self.leaves.insert(item.clone());
     }
@@ -43,11 +43,11 @@ impl<T: Default + Debug + Clone + Eq + Hash> DepsGraph<T> {
     pub fn insert_if_needed(&mut self, item: &T, dependency: &T) -> bool {
         let res = self.insert_child(item, dependency);
         assert!(self.insert_parent(item, dependency));
-        if let Some(set) = self.children.get(dependency) {
-            if !set.is_empty() {
-                self.leaves.swap_remove(dependency);
-                return res;
-            }
+        if let Some(set) = self.children.get(dependency)
+            && !set.is_empty()
+        {
+            self.leaves.swap_remove(dependency);
+            return res;
         }
         self.leaves.insert(dependency.clone());
         res

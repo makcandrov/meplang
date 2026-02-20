@@ -34,6 +34,7 @@ pub const SELFBALANCE: OpCode = 0x47;
 pub const BASEFEE: OpCode = 0x48;
 pub const BLOBHASH: OpCode = 0x49;
 pub const BLOBBASEFEE: OpCode = 0x4a;
+pub const SLOTNUM: OpCode = 0x4b;
 
 // 0x50 range - 'storage' and execution.
 pub const POP: OpCode = 0x50;
@@ -88,6 +89,7 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "shl" => 0x1b,
         "shr" => 0x1c,
         "sar" => 0x1d,
+        "clz" => 0x1e,
 
         // 0x20 range - crypto.
         "keccak256" => 0x20,
@@ -124,6 +126,7 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "basefee" => BASEFEE,
         "blobhash" => BLOBHASH,
         "blobbasefee" => BLOBBASEFEE,
+        "slotnum" => SLOTNUM,
 
         // 0x50 range - 'storage' and execution.
         "pop" => POP,
@@ -189,6 +192,10 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
         "log3" => 0xa3,
         "log4" => 0xa4,
 
+        "dupn" => 0xe6,
+        "swapn" => 0xe7,
+        "exchange" => 0xe8,
+
         // 0xf0 range - closures.
         "create" => 0xf0,
         "call" => 0xf1,
@@ -199,7 +206,7 @@ pub fn str_to_op(name: &str) -> Option<OpCode> {
 
         "staticcall" => 0xfa,
         "revert" => 0xfd,
-
+        "invalid" => 0xfe,
         "selfdestruct" => 0xff,
 
         _ => return None,

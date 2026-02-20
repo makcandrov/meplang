@@ -1,27 +1,62 @@
-[package]
-name = "meplang"
-version = "0.1.9"
+[workspace.package]
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 repository = "https://github.com/makcandrov/meplang"
 homepage = "https://github.com/makcandrov/meplang"
-documentation = "https://docs.rs/meplang"
-description = "An EVM low-level language that gives full control over the control flow of the smart contract."
 license = "MIT OR Apache-2.0"
 keywords = ["crypto", "ethereum"]
 
-[dependencies]
+[workspace]
+members = [
+    "cli",
+    "",
+]
+default-members = ["cli"]
+
+resolver = "2"
+
+[workspace.dependencies]
+meplang.path = "./"
+meplang-cli.path = "./cli/"
+
+bytes = "1"
+clap = "4"
+hex = "0.4"
+indexmap = "2"
 pest = "2"
 pest_derive = "2"
-bytes = "1"
-hex = "0.4"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-rand = "0.9"
-indexmap = "2"
 quick-impl = "0.2"
+rand = "0.10"
+serde = "1"
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[package]
+name = "meplang"
+documentation = "https://docs.rs/meplang"
+description = "An EVM low-level language that gives full control over the control flow of the smart contract."
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+keywords.workspace = true
+
+[dependencies]
+bytes.workspace = true
+hex.workspace = true
+indexmap.workspace = true
+pest.workspace = true
+pest_derive.workspace = true
+quick-impl.workspace = true
+rand.workspace = true
+serde = { workspace = true, features = ["derive"] }
+tracing.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
 
 [profile.maxperf]
 inherits = "release"
