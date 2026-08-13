@@ -102,7 +102,7 @@ impl Attribute {
                     return Err(new_error_from_located(
                         input,
                         &eq.name,
-                        &format!("Unknown opcode `{}`", &eq.name_str()),
+                        &format!("Unknown opcode `{}`", eq.name_str()),
                     ));
                 };
 

@@ -344,7 +344,7 @@ pub fn pre_process_contract(
                     &r_contract.blocks[block_index],
                     &format!(
                         "Unused block `{}`",
-                        &r_contract.blocks[block_index].inner().name_str()
+                        r_contract.blocks[block_index].inner().name_str()
                     )
                 )
             );
